@@ -4,8 +4,8 @@ import 'package:assets_manager/model/data_model/location.dart';
 class Asset extends TreeNode {
   final String? sensorId;
   final String? sensorType;
-  final String status;
-  final String gatewayId;
+  final String? status;
+  final String? gatewayId;
   final String? locationId;
 
   List<Asset>? get subAssets => children?.whereType<Asset>().toList();

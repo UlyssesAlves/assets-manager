@@ -1,11 +1,11 @@
-import 'dart:convert';
-
 import 'package:assets_manager/components/select_company_button.dart';
-import 'package:assets_manager/constants/endpoints.dart';
 import 'package:assets_manager/constants/spacings.dart';
 import 'package:assets_manager/model/data_model/company.dart';
+import 'package:assets_manager/services/api_service.dart';
+import 'package:assets_manager/services/tree_builder.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:rflutter_alert/rflutter_alert.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -15,6 +15,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Future<List<Company>>? _companiesFuture;
   Key? _refreshKey;
+  ApiService apiService = ApiService();
 
   @override
   void initState() {
@@ -24,7 +25,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void refreshCompanies() {
-    _companiesFuture = getCompanies();
+    _companiesFuture = apiService.getCompanies();
     _refreshKey = UniqueKey();
   }
 
@@ -62,8 +63,17 @@ class _HomePageState extends State<HomePage> {
                 )
               ]);
             } else {
-              // TODO: show progress indicator.
-              gui.add(const Text('Loading companies... Please wait.'));
+              gui.add(Center(
+                child: Column(
+                  children: [
+                    LoadingAnimationWidget.staggeredDotsWave(
+                      color: Colors.blueAccent,
+                      size: 70,
+                    ),
+                    const Text('Loading companies. Please wait...'),
+                  ],
+                ),
+              ));
             }
 
             return Column(
@@ -77,46 +87,65 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<List<Company>> getCompanies() async {
-    var companies = <Company>[];
-
-    var response = await http.get(Uri.parse(kCompaniesEndpointUrl));
-
-    if (response.statusCode == 200) {
-      companies.clear();
-
-      var companiesListJson = jsonDecode(response.body);
-
-      for (var companyJson in companiesListJson) {
-        companies.add(
-          Company(
-            companyJson['id'],
-            companyJson['name'],
-          ),
-        );
-      }
-
-      return companies;
-    } else {
-      // TODO: show error message to user.
-      // TODO: display a button that the user can press to try to load the companies list again.
-      print('Error trying to get companies from the application endpoint.');
-      print('Status code: ${response.statusCode}');
-      print(response.body);
-      throw Exception('Unable to load companies.');
-    }
-  }
-
   List<Widget> buildCompaniesList(List<Company> companies) {
     var companiesList = <Widget>[];
 
     for (var company in companies) {
       companiesList.addAll([
-        SelectCompanyButton(company),
+        SelectCompanyButton(company, onSelectedCompany),
         const SizedBox(height: kVerticalListSpacing),
       ]);
     }
 
     return companiesList;
+  }
+
+  Future<void> onSelectedCompany(String companyId) async {
+    try {
+      Alert(
+        context: context,
+        title: 'Loading Assets',
+        style: const AlertStyle(
+          isCloseButton: false,
+          isOverlayTapDismiss: false,
+          isButtonVisible: false,
+        ),
+        content: Center(
+          child: Column(
+            children: [
+              LoadingAnimationWidget.staggeredDotsWave(
+                color: Colors.blueGrey,
+                size: 70,
+              ),
+              const Text('Please wait.'),
+            ],
+          ),
+        ),
+        onWillPopActive: true,
+      ).show();
+
+      var companyAssets = await apiService.getCompanyAssets(companyId);
+
+      var companyLocations = await apiService.getCompanyLocations(companyId);
+
+      TreeBuilder treeBuilder = TreeBuilder(companyAssets, companyLocations);
+
+      final tree = treeBuilder.buildTree();
+
+      Navigator.pop(context);
+
+      // TODO: open assets screen.
+    } catch (e) {
+      // TODO: show error to end user and ask him to try again.
+      print('Error trying load assets page for selected company.');
+      print(e);
+
+      await Alert(
+              context: context,
+              type: AlertType.error,
+              desc:
+                  'Error trying to load the selected company. Please, try again later.')
+          .show();
+    }
   }
 }
