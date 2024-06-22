@@ -1,3 +1,4 @@
+import 'package:assets_manager/constants/styles.dart';
 import 'package:assets_manager/model/data_model/item.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -12,20 +13,59 @@ class AssetPage extends StatefulWidget {
 }
 
 class _AssetPageState extends State<AssetPage> {
+  String textFilter = '';
+
+  TextEditingController? textFilterController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+
+    textFilterController?.addListener(() {
+      setState(() {
+        textFilter = textFilterController?.text.toLowerCase() ?? '';
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'Assets',
           textAlign: TextAlign.center,
         ),
       ),
       body: Container(
         padding: const EdgeInsets.all(10.0),
-        // TODO: allow the user to horizontally scroll the assets tree to view text which goes beyond the screen limits.
-        child: ListView(
-          children: renderAssetsTreeView(),
+        child: Column(
+          children: [
+            TextField(
+              controller: textFilterController,
+              style: const TextStyle(
+                color: kAssetsSearchFilterPlaceholderColor,
+                fontFamily: 'Regular',
+                fontSize: 14,
+              ),
+              decoration: const InputDecoration(
+                filled: true,
+                fillColor: Color.fromARGB(255, 234, 239, 243),
+                hintText: 'Buscar Ativo ou Local',
+                prefixIcon: Icon(
+                  FontAwesomeIcons.magnifyingGlass,
+                  color: kAssetsSearchFilterPlaceholderColor,
+                ),
+              ),
+            ),
+            const Divider(),
+            // TODO: allow the user to horizontally scroll the assets tree to view text which goes beyond the screen limits.
+            Expanded(
+              child: ListView(
+                children: renderAssetsTreeView(),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -36,9 +76,22 @@ class _AssetPageState extends State<AssetPage> {
     List<Widget> assetsTreeView = [];
 
     for (var item in widget.assetsTree.children) {
-      Container itemView = buildItemView(item);
+      if (item.matchesTextFilter(textFilter)) {
+        Container itemView = buildItemView(item);
 
-      assetsTreeView.add(itemView);
+        assetsTreeView.add(itemView);
+      }
+    }
+
+    if (assetsTreeView.isEmpty) {
+      assetsTreeView.add(Center(
+        child: Text(
+          'No assets match the provided filter. Please try changing the filters to view assets.',
+          style: TextStyle(
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ));
     }
 
     return assetsTreeView;
@@ -87,7 +140,9 @@ class _AssetPageState extends State<AssetPage> {
       List<Widget> itemChildrenViews = [];
 
       for (var child in item.children) {
-        itemChildrenViews.add(buildItemView(child));
+        if (child.matchesTextFilter(textFilter)) {
+          itemChildrenViews.add(buildItemView(child));
+        }
       }
 
       itemViewMainColumnComponents.add(

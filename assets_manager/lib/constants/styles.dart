@@ -17,3 +17,5 @@ const MaterialColor primaryBlack = MaterialColor(
     900: Color(0xFF000000),
   },
 );
+
+const kAssetsSearchFilterPlaceholderColor = Color.fromARGB(255, 142, 152, 163);

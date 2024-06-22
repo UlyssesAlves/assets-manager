@@ -32,4 +32,20 @@ class TreeNode {
   bool get isInAlertStatus =>
       this is Asset && (this as Asset).status == 'alert';
   bool get hasChildren => children.isNotEmpty;
+
+  bool matchesTextFilter(String textFilter) {
+    if (textFilter.isEmpty) {
+      return true;
+    } else if (name.toLowerCase().contains(textFilter)) {
+      return true;
+    } else {
+      for (var child in children) {
+        if (child.matchesTextFilter(textFilter)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
 }
