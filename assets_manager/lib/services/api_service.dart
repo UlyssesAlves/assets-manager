@@ -68,7 +68,7 @@ class ApiService {
 
   Future<Map<String, Location>> getCompanyLocations(String companyId) async {
     String parameterizedEndpointUrl =
-        kCompanyAssetsEndpointUrl.replaceFirst(':companyId', companyId);
+        kCompanyLocationsEndpointUrl.replaceFirst(':companyId', companyId);
 
     dynamic companyLocationsJson =
         await getJsonFromEndpoint(parameterizedEndpointUrl);

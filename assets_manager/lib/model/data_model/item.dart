@@ -1,3 +1,6 @@
+import 'package:assets_manager/model/data_model/asset.dart';
+import 'package:assets_manager/model/data_model/location.dart';
+
 /// Represents a generic item which can be part of the tree.
 class TreeNode {
   final String id;
@@ -20,4 +23,13 @@ class TreeNode {
   void addChild(TreeNode child) {
     _children.add(child);
   }
+
+  bool get isLocation => this is Location;
+  bool get isAsset => this is Asset;
+  bool get isComponent => this is Asset && (this as Asset).isComponent;
+  bool get hasEnergySensor =>
+      this is Asset && (this as Asset).sensorType == 'energy';
+  bool get isInAlertStatus =>
+      this is Asset && (this as Asset).status == 'alert';
+  bool get hasChildren => children.isNotEmpty;
 }

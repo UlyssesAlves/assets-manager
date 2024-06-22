@@ -1,6 +1,7 @@
 import 'package:assets_manager/components/select_company_button.dart';
 import 'package:assets_manager/constants/spacings.dart';
 import 'package:assets_manager/model/data_model/company.dart';
+import 'package:assets_manager/pages/asset_page.dart';
 import 'package:assets_manager/services/api_service.dart';
 import 'package:assets_manager/services/dialogs_service.dart';
 import 'package:assets_manager/services/tree_builder.dart';
@@ -115,8 +116,14 @@ class _HomePageState extends State<HomePage> {
         return treeBuilder.buildTree();
       }, 'Loading Company Assets');
 
-      // TODO: open assets screen.
       print('Finished loading assets.');
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AssetPage(assetTree),
+        ),
+      );
     } catch (e) {
       // TODO: show error to end user and ask him to try again.
       print('Error trying load assets page for selected company.');

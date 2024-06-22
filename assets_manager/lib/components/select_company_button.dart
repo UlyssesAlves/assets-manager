@@ -16,7 +16,7 @@ class SelectCompanyButton extends StatelessWidget {
       onPressed: () async {
         await onSelectedCompany(company.id);
       },
-      icon: const Icon(Icons.home),
+      icon: Image.asset('images/company.png'),
       label: Text(company.name),
       style: const ButtonStyle(
         alignment: Alignment.centerLeft,
