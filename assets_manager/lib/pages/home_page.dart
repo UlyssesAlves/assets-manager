@@ -2,6 +2,7 @@ import 'package:assets_manager/components/select_company_button.dart';
 import 'package:assets_manager/constants/spacings.dart';
 import 'package:assets_manager/model/data_model/company.dart';
 import 'package:assets_manager/services/api_service.dart';
+import 'package:assets_manager/services/dialogs_service.dart';
 import 'package:assets_manager/services/tree_builder.dart';
 import 'package:flutter/material.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
@@ -102,39 +103,20 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> onSelectedCompany(String companyId) async {
     try {
-      Alert(
-        context: context,
-        title: 'Loading Assets',
-        style: const AlertStyle(
-          isCloseButton: false,
-          isOverlayTapDismiss: false,
-          isButtonVisible: false,
-        ),
-        content: Center(
-          child: Column(
-            children: [
-              LoadingAnimationWidget.staggeredDotsWave(
-                color: Colors.blueGrey,
-                size: 70,
-              ),
-              const Text('Please wait.'),
-            ],
-          ),
-        ),
-        onWillPopActive: true,
-      ).show();
+      DialogsService dialogsService = DialogsService(context);
 
-      var companyAssets = await apiService.getCompanyAssets(companyId);
+      var assetTree = await dialogsService.awaitProcessToExecute(() async {
+        var companyAssets = await apiService.getCompanyAssets(companyId);
 
-      var companyLocations = await apiService.getCompanyLocations(companyId);
+        var companyLocations = await apiService.getCompanyLocations(companyId);
 
-      TreeBuilder treeBuilder = TreeBuilder(companyAssets, companyLocations);
+        TreeBuilder treeBuilder = TreeBuilder(companyAssets, companyLocations);
 
-      final tree = treeBuilder.buildTree();
-
-      Navigator.pop(context);
+        return treeBuilder.buildTree();
+      }, 'Loading Company Assets');
 
       // TODO: open assets screen.
+      print('Finished loading assets.');
     } catch (e) {
       // TODO: show error to end user and ask him to try again.
       print('Error trying load assets page for selected company.');

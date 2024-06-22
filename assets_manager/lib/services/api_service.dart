@@ -39,48 +39,50 @@ class ApiService {
     return companies;
   }
 
-  Future<List<Asset>> getCompanyAssets(String companyId) async {
+  Future<Map<String, Asset>> getCompanyAssets(String companyId) async {
     String parameterizedEndpointUrl =
         kCompanyAssetsEndpointUrl.replaceFirst(':companyId', companyId);
 
     dynamic companyAssetsJson =
         await getJsonFromEndpoint(parameterizedEndpointUrl);
 
-    List<Asset> companyAssets = [];
+    Map<String, Asset> companyAssets = {};
 
     for (var assetJson in companyAssetsJson) {
-      companyAssets.add(
-        Asset(
-          assetJson['status'],
-          assetJson['id'],
-          assetJson['name'],
-          assetJson['parentId'],
-          assetJson['gatewayId'],
-          sensorId: assetJson['sensorId'],
-          sensorType: assetJson['sensorType'],
-          locationId: assetJson['locationId'],
-        ),
+      String assetId = assetJson['id'];
+
+      companyAssets[assetId] = Asset(
+        assetJson['status'],
+        assetId,
+        assetJson['name'],
+        assetJson['parentId'],
+        assetJson['gatewayId'],
+        sensorId: assetJson['sensorId'],
+        sensorType: assetJson['sensorType'],
+        locationId: assetJson['locationId'],
       );
     }
 
     return companyAssets;
   }
 
-  Future<List<Location>> getCompanyLocations(String companyId) async {
+  Future<Map<String, Location>> getCompanyLocations(String companyId) async {
     String parameterizedEndpointUrl =
         kCompanyAssetsEndpointUrl.replaceFirst(':companyId', companyId);
 
     dynamic companyLocationsJson =
         await getJsonFromEndpoint(parameterizedEndpointUrl);
 
-    List<Location> companyLocations = [];
+    Map<String, Location> companyLocations = {};
 
     for (var locationJson in companyLocationsJson) {
-      companyLocations.add(Location(
-        locationJson['id'],
+      final locationId = locationJson['id'];
+
+      companyLocations[locationId] = Location(
+        locationId,
         locationJson['name'],
         locationJson['parentId'],
-      ));
+      );
     }
 
     return companyLocations;

@@ -8,7 +8,7 @@ class Asset extends TreeNode {
   final String? gatewayId;
   final String? locationId;
 
-  List<Asset>? get subAssets => children?.whereType<Asset>().toList();
+  List<Asset>? get subAssets => children.whereType<Asset>().toList();
 
   Asset(
     this.status,

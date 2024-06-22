@@ -3,47 +3,69 @@ import 'package:assets_manager/model/data_model/item.dart';
 import 'package:assets_manager/model/data_model/location.dart';
 
 class TreeBuilder {
-  final List<Asset> _assets;
-  final List<Location> _locations;
+  final Map<String, Asset> _assets;
+  final Map<String, Location> _locations;
 
   TreeBuilder(this._assets, this._locations);
 
   final TreeNode _rootNode = TreeNode("0", "ROOT NODE", parentId: null);
 
-  TreeNode buildTree() {
-    for (var asset in _assets) {
-      if (asset.isLinkedToALocation &&
-          _locations.any((l) => l.id == asset.locationId)) {
-        var assetLocation =
-            _locations.firstWhere((l) => l.id == asset.locationId);
+  Future<TreeNode> buildTree() async {
+    for (var location in _locations.values) {
+      if (location.isSubLocation) {
+        var parentLocation = _locations[location.parentId];
 
-        assetLocation.children.add(asset);
-        asset.parentNode = assetLocation;
-      } else if (asset.hasParentId &&
-          _assets.any((a) => a.id == asset.parentId)) {
-        var parentAsset = _assets.firstWhere((a) => a.id == asset.parentId);
+        if (parentLocation != null) {
+          setParentNode(parentLocation, location);
+        } else {
+          print(
+              'Parent location not found, so setting this location to be a direct child of the root node.');
 
-        parentAsset.children.add(asset);
-        asset.parentNode = parentAsset;
+          setRootAsParentNode(location);
+        }
       } else {
-        _rootNode.children.add(asset);
-        asset.parentNode = _rootNode;
+        setRootAsParentNode(location);
       }
     }
 
-    for (var location in _locations) {
-      if (location.isSubLocation) {
-        var parentLocation =
-            _locations.firstWhere((l) => l.id == location.parentId);
+    for (var asset in _assets.values) {
+      if (!asset.isLinkedToALocation && !asset.hasParentId) {
+        setRootAsParentNode(asset);
+      } else if (asset.hasParentId) {
+        var parentAsset = _assets[asset.parentId];
 
-        parentLocation.children.add(location);
-        location.parentNode = parentLocation;
+        if (parentAsset != null) {
+          setParentNode(parentAsset, asset);
+        } else {
+          print(
+              'Parent asset not found, so setting this asset to be a direct child of the root node.');
+
+          setRootAsParentNode(asset);
+        }
       } else {
-        _rootNode.children.add(location);
-        location.parentNode = _rootNode;
+        var parentLocation = _locations[asset.locationId];
+
+        if (parentLocation != null) {
+          setParentNode(parentLocation, asset);
+        } else {
+          print(
+              'Parent location not found, so setting this asset to be a direct child of the root node.');
+
+          setRootAsParentNode(asset);
+        }
       }
     }
 
     return _rootNode;
+  }
+
+  void setParentNode(TreeNode parent, TreeNode child) {
+    parent.addChild(child);
+    child.parentNode = parent;
+  }
+
+  void setRootAsParentNode(TreeNode node) {
+    _rootNode.addChild(node);
+    node.parentNode = _rootNode;
   }
 }

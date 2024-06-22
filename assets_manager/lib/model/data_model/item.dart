@@ -8,6 +8,16 @@ class TreeNode {
 
   bool get hasParentId => parentId?.isNotEmpty ?? false;
 
-  List<TreeNode> children = [];
-  TreeNode? parentNode;
+  List<TreeNode> _children = [];
+  TreeNode? _parentNode;
+
+  set parentNode(TreeNode parent) {
+    _parentNode = parent;
+  }
+
+  List<TreeNode> get children => _children;
+
+  void addChild(TreeNode child) {
+    _children.add(child);
+  }
 }
