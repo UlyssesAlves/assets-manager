@@ -1,3 +1,4 @@
+import 'package:assets_manager/components/simple_button_with_icon.dart';
 import 'package:assets_manager/constants/styles.dart';
 import 'package:assets_manager/model/data_model/item.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +15,17 @@ class AssetPage extends StatefulWidget {
 
 class _AssetPageState extends State<AssetPage> {
   String textFilter = '';
+  bool filterEnergySensor = false, filterCriticalSensorStatus = false;
+
+  Map<bool, Color> buttonFilterForegroundColorByState = {
+    true: Colors.white,
+    false: kAssetsSearchInactiveFilterForegroundColor
+  };
+
+  Map<bool, Color> buttonFilterBackgroundColorByState = {
+    true: Color.fromARGB(255, 33, 136, 255),
+    false: kAssetsSearchInactiveFilterBackgroundColor
+  };
 
   TextEditingController? textFilterController = TextEditingController();
 
@@ -40,11 +52,12 @@ class _AssetPageState extends State<AssetPage> {
       body: Container(
         padding: const EdgeInsets.all(10.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
               controller: textFilterController,
               style: const TextStyle(
-                color: kAssetsSearchFilterPlaceholderColor,
+                color: kAssetsSearchInactiveFilterForegroundColor,
                 fontFamily: 'Regular',
                 fontSize: 14,
               ),
@@ -54,9 +67,48 @@ class _AssetPageState extends State<AssetPage> {
                 hintText: 'Buscar Ativo ou Local',
                 prefixIcon: Icon(
                   FontAwesomeIcons.magnifyingGlass,
-                  color: kAssetsSearchFilterPlaceholderColor,
+                  color: kAssetsSearchInactiveFilterForegroundColor,
                 ),
               ),
+            ),
+            Row(
+              children: [
+                SimpleButtonWithIcon(
+                  'Sensor de Energia',
+                  Icon(
+                    FontAwesomeIcons.boltLightning,
+                    size: 16,
+                  ),
+                  () {
+                    setState(() {
+                      filterEnergySensor = !filterEnergySensor;
+                    });
+                  },
+                  foregroundColor:
+                      buttonFilterForegroundColorByState[filterEnergySensor],
+                  backgroundColor:
+                      buttonFilterBackgroundColorByState[filterEnergySensor],
+                ),
+                SizedBox(
+                  width: 8,
+                ),
+                SimpleButtonWithIcon(
+                  'Crítico',
+                  Icon(
+                    FontAwesomeIcons.circleExclamation,
+                    size: 16,
+                  ),
+                  () {
+                    setState(() {
+                      filterCriticalSensorStatus = !filterCriticalSensorStatus;
+                    });
+                  },
+                  foregroundColor: buttonFilterForegroundColorByState[
+                      filterCriticalSensorStatus],
+                  backgroundColor: buttonFilterBackgroundColorByState[
+                      filterCriticalSensorStatus],
+                )
+              ],
             ),
             const Divider(),
             // TODO: allow the user to horizontally scroll the assets tree to view text which goes beyond the screen limits.
@@ -76,7 +128,7 @@ class _AssetPageState extends State<AssetPage> {
     List<Widget> assetsTreeView = [];
 
     for (var item in widget.assetsTree.children) {
-      if (item.matchesTextFilter(textFilter)) {
+      if (applyFilters(item)) {
         Container itemView = buildItemView(item);
 
         assetsTreeView.add(itemView);
@@ -96,6 +148,11 @@ class _AssetPageState extends State<AssetPage> {
 
     return assetsTreeView;
   }
+
+  bool applyFilters(TreeNode item) =>
+      item.matchesTextFilter(textFilter) &&
+      item.matchesEnergySensorFilter(filterEnergySensor) &&
+      item.matchesCriticalSensorStatusFilter(filterCriticalSensorStatus);
 
   Container buildItemView(TreeNode item) {
     List<Widget> itemViewMainColumnComponents = [
@@ -140,7 +197,7 @@ class _AssetPageState extends State<AssetPage> {
       List<Widget> itemChildrenViews = [];
 
       for (var child in item.children) {
-        if (child.matchesTextFilter(textFilter)) {
+        if (applyFilters(child)) {
           itemChildrenViews.add(buildItemView(child));
         }
       }

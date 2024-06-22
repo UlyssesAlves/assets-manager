@@ -48,4 +48,37 @@ class TreeNode {
 
     return false;
   }
+
+  bool matchesCriticalSensorStatusFilter(bool filterCriticalSensorStatus) {
+    if (!filterCriticalSensorStatus) {
+      return true;
+    } else if (isInAlertStatus == filterCriticalSensorStatus) {
+      return true;
+    } else {
+      for (var child in children) {
+        if (child
+            .matchesCriticalSensorStatusFilter(filterCriticalSensorStatus)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  bool matchesEnergySensorFilter(bool filterEnergySensor) {
+    if (!filterEnergySensor) {
+      return true;
+    } else if (hasEnergySensor == filterEnergySensor) {
+      return true;
+    } else {
+      for (var child in children) {
+        if (child.matchesEnergySensorFilter(filterEnergySensor)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
 }

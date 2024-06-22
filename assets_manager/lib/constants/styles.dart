@@ -18,4 +18,8 @@ const MaterialColor primaryBlack = MaterialColor(
   },
 );
 
-const kAssetsSearchFilterPlaceholderColor = Color.fromARGB(255, 142, 152, 163);
+const kAssetsSearchInactiveFilterForegroundColor =
+    Color.fromARGB(255, 142, 152, 163);
+
+const kAssetsSearchInactiveFilterBackgroundColor =
+    Color.fromARGB(255, 216, 223, 230);

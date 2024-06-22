@@ -1,4 +1,4 @@
-import 'package:assets_manager/components/select_company_button.dart';
+import 'package:assets_manager/components/simple_button_with_icon.dart';
 import 'package:assets_manager/constants/spacings.dart';
 import 'package:assets_manager/model/data_model/company.dart';
 import 'package:assets_manager/pages/asset_page.dart';
@@ -94,7 +94,14 @@ class _HomePageState extends State<HomePage> {
 
     for (var company in companies) {
       companiesList.addAll([
-        SelectCompanyButton(company, onSelectedCompany),
+        SimpleButtonWithIcon(
+          company.name,
+          Image.asset('images/company.png'),
+          () async {
+            await onSelectedCompany(company.id);
+          },
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
+        ),
         const SizedBox(height: kVerticalListSpacing),
       ]);
     }
