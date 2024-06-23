@@ -76,21 +76,23 @@ class AssetTreeNodeView extends StatelessWidget {
       }
 
       itemViewMainColumnComponents.add(
-        Row(
-          children: [
-            // TODO: fix the vertical line, which is not showing up as it should at the left of each item on the tree.
-            const Center(
-              child: VerticalDivider(
-                width: 20,
-                thickness: 1,
-                indent: 1,
-                color: Colors.red,
+        IntrinsicHeight(
+          child: Row(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 3),
+                child: VerticalDivider(
+                  color: Colors.grey,
+                  thickness: 1,
+                ),
               ),
-            ),
-            Column(
-              children: itemChildrenViews,
-            )
-          ],
+              Expanded(
+                child: Column(
+                  children: itemChildrenViews,
+                ),
+              )
+            ],
+          ),
         ),
       );
     }
