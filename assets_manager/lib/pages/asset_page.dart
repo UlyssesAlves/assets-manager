@@ -1,3 +1,4 @@
+import 'package:assets_manager/components/asset_tree/asset_tree_node_view.dart';
 import 'package:assets_manager/components/simple_button_with_icon.dart';
 import 'package:assets_manager/constants/styles.dart';
 import 'package:assets_manager/model/data_model/asset.dart';
@@ -293,21 +294,14 @@ class _AssetPageState extends State<AssetPage> {
                     ? searchTree.children.length
                     : totalLoadedItems,
                 itemBuilder: ((context, index) {
-                  if (filtersAreActive()) {
-                    TreeNode filteredLeafNodeToBuild =
-                        searchTree.children[index];
+                  TreeNode treeNodeToBuild = filtersAreActive()
+                      ? searchTree.children[index]
+                      : paginatedAssetsTree.children[index];
 
-                    var itemView = buildItemView(filteredLeafNodeToBuild);
-
-                    return itemView;
-                  } else {
-                    var paginatedNodeToBuild =
-                        paginatedAssetsTree.children[index];
-
-                    var itemView = buildItemView(paginatedNodeToBuild);
-
-                    return itemView;
-                  }
+                  return AssetTreeNodeView(
+                    treeNodeToBuild,
+                    nodeItemTap,
+                  );
                 }),
               ),
             ),
@@ -336,119 +330,12 @@ class _AssetPageState extends State<AssetPage> {
       item.matchesEnergySensorFilter(appliedFilterEnergySensor) &&
       item.matchesCriticalSensorStatusFilter(appliedFilterCriticalSensorStatus);
 
-  Container buildItemView(TreeNode item) {
-    List<Widget> itemViewMainColumnComponents = [
-      GestureDetector(
-        onTap: () {
-          if (item.hasChildren) {
-            setState(() {
-              item.toggleCollapsedState();
-            });
-          }
-        },
-        child: Container(
-          height: 28,
-          child: Row(
-            children: [
-              Visibility(
-                visible: item.hasChildren,
-                maintainSize: true,
-                maintainState: true,
-                maintainAnimation: true,
-                child: Icon(
-                  item.isExpanded
-                      ? Icons.keyboard_arrow_down
-                      : Icons.keyboard_arrow_right,
-                  size: 22,
-                ),
-              ),
-              getItemIcon(item),
-              Text(
-                item.name,
-                overflow: TextOverflow.fade,
-              ),
-              Visibility(
-                visible: item.hasEnergySensor,
-                maintainSize: false,
-                child: Icon(
-                  FontAwesomeIcons.boltLightning,
-                  color: Colors.green,
-                  size: 12,
-                ),
-              ),
-              Visibility(
-                visible: item.isInAlertStatus,
-                maintainSize: false,
-                child: Icon(
-                  FontAwesomeIcons.solidCircle,
-                  color: Colors.red,
-                  size: 8,
-                ),
-              )
-            ],
-          ),
-        ),
-      ),
-    ];
-
-    if (item.hasChildren && item.isExpanded) {
-      List<Widget> itemChildrenViews = [];
-
-      for (var child in item.children) {
-        if (applyFilters(child)) {
-          if (filtersAreActive()) {
-            child.setCollapsed = false;
-          }
-
-          itemChildrenViews.add(buildItemView(child));
-        }
-      }
-
-      itemViewMainColumnComponents.add(
-        Container(
-          child: Row(
-            children: [
-              // TODO: fix the vertical line, which is not showing up as it should at the left of each item on the tree.
-              VerticalDivider(
-                width: 20,
-                thickness: 1,
-                indent: 1,
-                color: Colors.red,
-              ),
-              Column(
-                children: itemChildrenViews,
-              )
-            ],
-          ),
-        ),
-      );
+  void nodeItemTap(TreeNode tappedItem) {
+    if (tappedItem.hasChildren) {
+      setState(() {
+        tappedItem.toggleCollapsedState();
+      });
     }
-
-    var itemView = Container(
-      child: Column(
-        children: itemViewMainColumnComponents,
-      ),
-    );
-
-    return itemView;
-  }
-
-  Image getItemIcon(TreeNode item) {
-    String iconImageFileNameWithoutExtension;
-
-    if (item.isLocation) {
-      iconImageFileNameWithoutExtension = 'location';
-    } else if (item.isComponent) {
-      iconImageFileNameWithoutExtension = 'component';
-    } else {
-      iconImageFileNameWithoutExtension = 'asset';
-    }
-
-    return Image.asset(
-      'images/$iconImageFileNameWithoutExtension.png',
-      height: 22,
-      width: 22,
-    );
   }
 
   bool filtersAreActive() {
