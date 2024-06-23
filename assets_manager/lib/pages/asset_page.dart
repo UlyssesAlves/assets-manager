@@ -402,11 +402,23 @@ class _AssetPageState extends State<AssetPage> {
           currentNode = currentNode.parentNode!;
         }
       }
+    } else {
+      collapseAllNodes();
     }
 
     TreeBuilder searchTreeBuilder =
         TreeBuilder(searchTreeAssets, searchTreeLocations);
 
     searchTree = searchTreeBuilder.buildTree();
+  }
+
+  void collapseAllNodes() {
+    for (var asset in widget.companyAssetsMap.values) {
+      asset.setCollapsed = true;
+    }
+
+    for (var location in widget.companyLocationsMap.values) {
+      location.setCollapsed = true;
+    }
   }
 }
