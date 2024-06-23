@@ -6,9 +6,10 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class AssetPage extends StatefulWidget {
-  AssetPage(this.assetsTree);
+  AssetPage(this.assetsTree, this.companyName);
 
   final TreeNode assetsTree;
+  final String companyName;
 
   @override
   _AssetPageState createState() => _AssetPageState();
@@ -117,8 +118,8 @@ class _AssetPageState extends State<AssetPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Assets',
+        title: Text(
+          '${widget.companyName} Assets',
           textAlign: TextAlign.center,
         ),
       ),
@@ -141,6 +142,7 @@ class _AssetPageState extends State<AssetPage> {
                 prefixIcon: Icon(
                   FontAwesomeIcons.magnifyingGlass,
                   color: kAssetsSearchInactiveFilterForegroundColor,
+                  size: 16,
                 ),
               ),
             ),
@@ -225,45 +227,48 @@ class _AssetPageState extends State<AssetPage> {
             });
           }
         },
-        child: Row(
-          children: [
-            // TODO: This icon should point to the right when this tree node is collapsed and downwards when the node is expanded.
-            Visibility(
-              visible: item.hasChildren,
-              maintainSize: true,
-              maintainState: true,
-              maintainAnimation: true,
-              child: Icon(
-                item.isExpanded
-                    ? Icons.keyboard_arrow_down
-                    : Icons.keyboard_arrow_right,
-                size: 22,
+        child: Container(
+          height: 28,
+          child: Row(
+            children: [
+              // TODO: This icon should point to the right when this tree node is collapsed and downwards when the node is expanded.
+              Visibility(
+                visible: item.hasChildren,
+                maintainSize: true,
+                maintainState: true,
+                maintainAnimation: true,
+                child: Icon(
+                  item.isExpanded
+                      ? Icons.keyboard_arrow_down
+                      : Icons.keyboard_arrow_right,
+                  size: 22,
+                ),
               ),
-            ),
-            getItemIcon(item),
-            Text(
-              item.name,
-              overflow: TextOverflow.fade,
-            ),
-            Visibility(
-              visible: item.hasEnergySensor,
-              maintainSize: false,
-              child: Icon(
-                FontAwesomeIcons.boltLightning,
-                color: Colors.green,
-                size: 12,
+              getItemIcon(item),
+              Text(
+                item.name,
+                overflow: TextOverflow.fade,
               ),
-            ),
-            Visibility(
-              visible: item.isInAlertStatus,
-              maintainSize: false,
-              child: Icon(
-                FontAwesomeIcons.solidCircle,
-                color: Colors.red,
-                size: 8,
+              Visibility(
+                visible: item.hasEnergySensor,
+                maintainSize: false,
+                child: Icon(
+                  FontAwesomeIcons.boltLightning,
+                  color: Colors.green,
+                  size: 12,
+                ),
               ),
-            )
-          ],
+              Visibility(
+                visible: item.isInAlertStatus,
+                maintainSize: false,
+                child: Icon(
+                  FontAwesomeIcons.solidCircle,
+                  color: Colors.red,
+                  size: 8,
+                ),
+              )
+            ],
+          ),
         ),
       ),
     ];

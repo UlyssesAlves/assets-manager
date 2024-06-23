@@ -98,7 +98,7 @@ class _HomePageState extends State<HomePage> {
           company.name,
           Image.asset('images/company.png'),
           () async {
-            await onSelectedCompany(company.id);
+            await onSelectedCompany(company);
           },
           padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
         ),
@@ -109,14 +109,14 @@ class _HomePageState extends State<HomePage> {
     return companiesList;
   }
 
-  Future<void> onSelectedCompany(String companyId) async {
+  Future<void> onSelectedCompany(Company company) async {
     try {
       DialogsService dialogsService = DialogsService(context);
 
       var assetTree = await dialogsService.awaitProcessToExecute(() async {
-        var companyAssets = await apiService.getCompanyAssets(companyId);
+        var companyAssets = await apiService.getCompanyAssets(company.id);
 
-        var companyLocations = await apiService.getCompanyLocations(companyId);
+        var companyLocations = await apiService.getCompanyLocations(company.id);
 
         TreeBuilder treeBuilder = TreeBuilder(companyAssets, companyLocations);
 
@@ -128,7 +128,7 @@ class _HomePageState extends State<HomePage> {
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => AssetPage(assetTree),
+          builder: (context) => AssetPage(assetTree, company.name),
         ),
       );
     } catch (e) {
