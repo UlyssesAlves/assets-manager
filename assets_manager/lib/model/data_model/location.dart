@@ -1,4 +1,4 @@
-import 'package:assets_manager/model/data_model/item.dart';
+import 'package:assets_manager/model/data_model/tree_node.dart';
 
 class Location extends TreeNode {
   Location(

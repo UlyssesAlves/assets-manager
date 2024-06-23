@@ -13,6 +13,18 @@ class TreeNode {
 
   List<TreeNode> _children = [];
   TreeNode? _parentNode;
+  bool _collapsed = true;
+
+  bool get isExpanded => !isCollapsed;
+
+  set setCollapsed(bool value) {
+    _collapsed = value;
+  }
+
+  /// Expands this node if it's collapsed and collaps it if it's expanded.
+  void toggleCollapsedState() {
+    _collapsed = !_collapsed;
+  }
 
   set parentNode(TreeNode parent) {
     _parentNode = parent;
@@ -25,6 +37,7 @@ class TreeNode {
   }
 
   bool get isLocation => this is Location;
+  bool get isCollapsed => _collapsed;
   bool get isAsset => this is Asset;
   bool get isComponent => this is Asset && (this as Asset).isComponent;
   bool get hasEnergySensor =>

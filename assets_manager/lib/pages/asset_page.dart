@@ -1,7 +1,8 @@
 import 'package:assets_manager/components/simple_button_with_icon.dart';
 import 'package:assets_manager/constants/styles.dart';
-import 'package:assets_manager/model/data_model/item.dart';
+import 'package:assets_manager/model/data_model/tree_node.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class AssetPage extends StatefulWidget {
@@ -16,6 +17,12 @@ class AssetPage extends StatefulWidget {
 class _AssetPageState extends State<AssetPage> {
   String textFilter = '';
   bool filterEnergySensor = false, filterCriticalSensorStatus = false;
+
+  final scrollController = ScrollController();
+  TreeNode paginatedAssetsTree = TreeNode('0', 'PAGINATED-TREE');
+
+  /// How many items are loaded to increase the tree each time the user hits the bottom of the scroller.
+  final pageSize = 50;
 
   Map<bool, Color> buttonFilterForegroundColorByState = {
     true: Colors.white,
@@ -33,11 +40,77 @@ class _AssetPageState extends State<AssetPage> {
   void initState() {
     super.initState();
 
+    addMoreItemsToPaginatedTree();
+
+    scrollController.addListener(loadMoreItems);
+
     textFilterController?.addListener(() {
       setState(() {
         textFilter = textFilterController?.text.toLowerCase() ?? '';
       });
     });
+  }
+
+  @override
+  void dispose() {
+    scrollController.dispose();
+
+    super.dispose();
+  }
+
+  void loadMoreItems() {
+    if (scrollController.position.pixels ==
+        scrollController.position.maxScrollExtent) {
+      if (totalLoadedItems == totalItems) {
+        return;
+      }
+
+      setState(() {
+        addMoreItemsToPaginatedTree();
+      });
+    }
+  }
+
+  int get totalItems {
+    return widget.assetsTree.children.length;
+  }
+
+  int get totalLoadedItems {
+    return paginatedAssetsTree.children.length;
+  }
+
+  void addMoreItemsToPaginatedTree() {
+    int totalItemsToAdd = 0;
+    String toastMessage = '';
+    Color toastBackgroundColor;
+
+    if (totalItems - totalLoadedItems > pageSize) {
+      totalItemsToAdd = pageSize;
+
+      if (filtersAreActive()) {
+        toastMessage =
+            "Remove the filters to view the new items justed loaded into the list.";
+        toastBackgroundColor = Colors.brown;
+      } else {
+        toastMessage = "Scroll down to view more items.";
+        toastBackgroundColor = Colors.black;
+      }
+    } else {
+      totalItemsToAdd = totalItems - totalLoadedItems;
+      toastMessage = 'Finished loading all items.';
+      toastBackgroundColor = Colors.green;
+    }
+
+    paginatedAssetsTree.children.addAll(widget.assetsTree.children
+        .getRange(totalLoadedItems, totalLoadedItems + totalItemsToAdd));
+
+    Fluttertoast.showToast(
+        msg: toastMessage,
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: toastBackgroundColor,
+        textColor: Colors.white,
+        fontSize: 16.0);
   }
 
   @override
@@ -113,40 +186,28 @@ class _AssetPageState extends State<AssetPage> {
             const Divider(),
             // TODO: allow the user to horizontally scroll the assets tree to view text which goes beyond the screen limits.
             Expanded(
-              child: ListView(
-                children: renderAssetsTreeView(),
+              child: ListView.builder(
+                controller: scrollController,
+                itemCount: totalLoadedItems,
+                itemBuilder: ((context, index) {
+                  var nodeToBuild = paginatedAssetsTree.children[index];
+
+                  if (applyFilters(nodeToBuild)) {
+                    if (filtersAreActive()) {
+                      nodeToBuild.setCollapsed = false;
+                    }
+
+                    return buildItemView(nodeToBuild);
+                  } else {
+                    return const SizedBox.shrink();
+                  }
+                }),
               ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  // TODO: improve the performance of the assets tree view by rendering it in parts rather than in total.
-  List<Widget> renderAssetsTreeView() {
-    List<Widget> assetsTreeView = [];
-
-    for (var item in widget.assetsTree.children) {
-      if (applyFilters(item)) {
-        Container itemView = buildItemView(item);
-
-        assetsTreeView.add(itemView);
-      }
-    }
-
-    if (assetsTreeView.isEmpty) {
-      assetsTreeView.add(Center(
-        child: Text(
-          'No assets match the provided filter. Please try changing the filters to view assets.',
-          style: TextStyle(
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-      ));
-    }
-
-    return assetsTreeView;
   }
 
   bool applyFilters(TreeNode item) =>
@@ -156,48 +217,66 @@ class _AssetPageState extends State<AssetPage> {
 
   Container buildItemView(TreeNode item) {
     List<Widget> itemViewMainColumnComponents = [
-      Row(
-        children: [
-          // TODO: This icon should point to the right when this tree node is collapsed and downwards when the node is expanded.
-          Visibility(
-            visible: item.hasChildren,
-            child: const Icon(
-              Icons.keyboard_arrow_down,
-              size: 22,
+      GestureDetector(
+        onTap: () {
+          if (item.hasChildren) {
+            setState(() {
+              item.toggleCollapsedState();
+            });
+          }
+        },
+        child: Row(
+          children: [
+            // TODO: This icon should point to the right when this tree node is collapsed and downwards when the node is expanded.
+            Visibility(
+              visible: item.hasChildren,
+              maintainSize: true,
+              maintainState: true,
+              maintainAnimation: true,
+              child: Icon(
+                item.isExpanded
+                    ? Icons.keyboard_arrow_down
+                    : Icons.keyboard_arrow_right,
+                size: 22,
+              ),
             ),
-          ),
-          getItemIcon(item),
-          Text(
-            item.name,
-            overflow: TextOverflow.fade,
-          ),
-          Visibility(
-            visible: item.hasEnergySensor,
-            maintainSize: false,
-            child: Icon(
-              FontAwesomeIcons.boltLightning,
-              color: Colors.green,
-              size: 12,
+            getItemIcon(item),
+            Text(
+              item.name,
+              overflow: TextOverflow.fade,
             ),
-          ),
-          Visibility(
-            visible: item.isInAlertStatus,
-            maintainSize: false,
-            child: Icon(
-              FontAwesomeIcons.solidCircle,
-              color: Colors.red,
-              size: 8,
+            Visibility(
+              visible: item.hasEnergySensor,
+              maintainSize: false,
+              child: Icon(
+                FontAwesomeIcons.boltLightning,
+                color: Colors.green,
+                size: 12,
+              ),
             ),
-          )
-        ],
+            Visibility(
+              visible: item.isInAlertStatus,
+              maintainSize: false,
+              child: Icon(
+                FontAwesomeIcons.solidCircle,
+                color: Colors.red,
+                size: 8,
+              ),
+            )
+          ],
+        ),
       ),
     ];
 
-    if (item.hasChildren) {
+    if (item.hasChildren && item.isExpanded) {
       List<Widget> itemChildrenViews = [];
 
       for (var child in item.children) {
         if (applyFilters(child)) {
+          if (filtersAreActive()) {
+            child.setCollapsed = false;
+          }
+
           itemChildrenViews.add(buildItemView(child));
         }
       }
@@ -247,5 +326,11 @@ class _AssetPageState extends State<AssetPage> {
       height: 22,
       width: 22,
     );
+  }
+
+  bool filtersAreActive() {
+    return textFilter.isNotEmpty ||
+        filterCriticalSensorStatus ||
+        filterEnergySensor;
   }
 }
