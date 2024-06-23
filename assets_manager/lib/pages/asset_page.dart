@@ -1,6 +1,5 @@
 import 'package:assets_manager/components/simple_button_with_icon.dart';
 import 'package:assets_manager/constants/styles.dart';
-import 'package:assets_manager/infrastructure/performance_counter.dart';
 import 'package:assets_manager/model/data_model/asset.dart';
 import 'package:assets_manager/model/data_model/location.dart';
 import 'package:assets_manager/model/data_model/tree_node.dart';
@@ -30,7 +29,6 @@ class _AssetPageState extends State<AssetPage> {
       appliedFilterCriticalSensorStatus = false;
   bool energySensorFilterButtonState = false,
       criticalSensorStatusFilterButtonState = false;
-  PerformanceCounter performanceCounter = PerformanceCounter();
 
   final scrollController = ScrollController();
   TreeNode paginatedAssetsTree = TreeNode('0', 'PAGINATED-TREE');
@@ -194,12 +192,12 @@ class _AssetPageState extends State<AssetPage> {
                   backgroundColor: buttonFilterBackgroundColorByState[
                       energySensorFilterButtonState],
                 ),
-                SizedBox(
+                const SizedBox(
                   width: 8,
                 ),
                 SimpleButtonWithIcon(
                   'Crítico',
-                  Icon(
+                  const Icon(
                     FontAwesomeIcons.circleExclamation,
                     size: 16,
                   ),
@@ -245,7 +243,7 @@ class _AssetPageState extends State<AssetPage> {
                         : Colors.grey,
                   ),
                 ),
-                SizedBox(
+                const SizedBox(
                   width: 20,
                 ),
                 Expanded(
@@ -277,7 +275,7 @@ class _AssetPageState extends State<AssetPage> {
             const Divider(),
             Visibility(
               visible: filtersAreActive() && !searchTree.hasChildren,
-              child: Center(
+              child: const Center(
                 child: Text(
                   'Não foram encontrados itens com os filtros informados. Por favor, altere ou limpe os filtros e tente novamente.',
                   style: TextStyle(
@@ -299,18 +297,7 @@ class _AssetPageState extends State<AssetPage> {
                     TreeNode filteredLeafNodeToBuild =
                         searchTree.children[index];
 
-                    var performanceCounterKey =
-                        'BuildItemViewFILTERED $filteredLeafNodeToBuild';
-
-                    performanceCounter
-                        .trackActionStartTime(performanceCounterKey);
-
                     var itemView = buildItemView(filteredLeafNodeToBuild);
-
-                    performanceCounter
-                        .trackActionFinishTime(performanceCounterKey);
-
-                    performanceCounter.printWorsePerformanceTrackedSoFar();
 
                     return itemView;
                   } else {
@@ -363,7 +350,6 @@ class _AssetPageState extends State<AssetPage> {
           height: 28,
           child: Row(
             children: [
-              // TODO: This icon should point to the right when this tree node is collapsed and downwards when the node is expanded.
               Visibility(
                 visible: item.hasChildren,
                 maintainSize: true,
@@ -472,20 +458,12 @@ class _AssetPageState extends State<AssetPage> {
   }
 
   void refreshSearchTree() {
-    performanceCounter.trackActionStartTime(kActionRefreshSearchTreeCall);
-
     Map<String, Asset> searchTreeAssets = {};
     Map<String, Location> searchTreeLocations = {};
 
     if (filtersAreActive()) {
-      performanceCounter.trackActionStartTime(kGetLeafNodesFilterResults);
-
       var leafNodesFilterResults =
           widget.leafNodes.where((n) => applyFilters(n)).toList();
-
-      performanceCounter.trackActionFinishTime(kGetLeafNodesFilterResults);
-
-      performanceCounter.trackActionStartTime(kLoopleafNodesFilterResults);
 
       for (var leafNode in leafNodesFilterResults) {
         TreeNode currentNode = leafNode;
@@ -514,28 +492,14 @@ class _AssetPageState extends State<AssetPage> {
           currentNode = currentNode.parentNode!;
         }
       }
-
-      performanceCounter.trackActionFinishTime(kLoopleafNodesFilterResults);
     } else {
-      performanceCounter.trackActionStartTime(kCollapseAllNodes);
-
       collapseAllNodes();
-
-      performanceCounter.trackActionFinishTime(kCollapseAllNodes);
     }
-
-    performanceCounter.trackActionStartTime(kBuildSearchTree);
 
     TreeBuilder searchTreeBuilder =
         TreeBuilder(searchTreeAssets, searchTreeLocations);
 
     searchTree = searchTreeBuilder.buildTree();
-
-    performanceCounter.trackActionFinishTime(kBuildSearchTree);
-
-    performanceCounter.trackActionFinishTime(kActionRefreshSearchTreeCall);
-
-    performanceCounter.printPerformanceReport();
   }
 
   void collapseAllNodes() {
