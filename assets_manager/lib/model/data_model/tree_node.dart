@@ -104,4 +104,13 @@ class TreeNode {
   TreeNode copy() {
     return TreeNode(id, name, parentId: parentId);
   }
+
+  @override
+  String toString() {
+    if (this is Asset) {
+      return (this as Asset).toString();
+    } else {
+      return (this as Location).toString();
+    }
+  }
 }

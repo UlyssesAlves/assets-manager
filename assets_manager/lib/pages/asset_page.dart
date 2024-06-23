@@ -1,5 +1,6 @@
 import 'package:assets_manager/components/simple_button_with_icon.dart';
 import 'package:assets_manager/constants/styles.dart';
+import 'package:assets_manager/infrastructure/performance_counter.dart';
 import 'package:assets_manager/model/data_model/asset.dart';
 import 'package:assets_manager/model/data_model/location.dart';
 import 'package:assets_manager/model/data_model/tree_node.dart';
@@ -29,6 +30,7 @@ class _AssetPageState extends State<AssetPage> {
       appliedFilterCriticalSensorStatus = false;
   bool energySensorFilterButtonState = false,
       criticalSensorStatusFilterButtonState = false;
+  PerformanceCounter performanceCounter = PerformanceCounter();
 
   final scrollController = ScrollController();
   TreeNode paginatedAssetsTree = TreeNode('0', 'PAGINATED-TREE');
@@ -161,7 +163,7 @@ class _AssetPageState extends State<AssetPage> {
                       decoration: const InputDecoration(
                         filled: true,
                         fillColor: Color.fromARGB(255, 234, 239, 243),
-                        hintText: 'Buscar Ativo ou Local',
+                        hintText: 'Buscar Ativo ou Local (min 4 caracteres))',
                         prefixIcon: Icon(
                           FontAwesomeIcons.magnifyingGlass,
                           color: kAssetsSearchInactiveFilterForegroundColor,
@@ -248,7 +250,7 @@ class _AssetPageState extends State<AssetPage> {
                 ),
                 Expanded(
                   child: SimpleButtonWithIcon(
-                    'Limpar Filtros',
+                    'Resetar Filtros',
                     const Icon(
                       FontAwesomeIcons.ban,
                       size: 16,
@@ -297,12 +299,27 @@ class _AssetPageState extends State<AssetPage> {
                     TreeNode filteredLeafNodeToBuild =
                         searchTree.children[index];
 
-                    return buildItemView(filteredLeafNodeToBuild);
+                    var performanceCounterKey =
+                        'BuildItemViewFILTERED $filteredLeafNodeToBuild';
+
+                    performanceCounter
+                        .trackActionStartTime(performanceCounterKey);
+
+                    var itemView = buildItemView(filteredLeafNodeToBuild);
+
+                    performanceCounter
+                        .trackActionFinishTime(performanceCounterKey);
+
+                    performanceCounter.printWorsePerformanceTrackedSoFar();
+
+                    return itemView;
                   } else {
                     var paginatedNodeToBuild =
                         paginatedAssetsTree.children[index];
 
-                    return buildItemView(paginatedNodeToBuild);
+                    var itemView = buildItemView(paginatedNodeToBuild);
+
+                    return itemView;
                   }
                 }),
               ),
@@ -314,7 +331,9 @@ class _AssetPageState extends State<AssetPage> {
   }
 
   bool shouldEnableApplyFiltersButton() {
-    return (textFilterCurrentValue != null && textFilterCurrentValue != '') ||
+    return (textFilterCurrentValue != null &&
+            textFilterCurrentValue != '' &&
+            textFilterCurrentValue!.length >= 4) ||
         energySensorFilterButtonState ||
         criticalSensorStatusFilterButtonState;
   }
@@ -453,12 +472,20 @@ class _AssetPageState extends State<AssetPage> {
   }
 
   void refreshSearchTree() {
+    performanceCounter.trackActionStartTime(kActionRefreshSearchTreeCall);
+
     Map<String, Asset> searchTreeAssets = {};
     Map<String, Location> searchTreeLocations = {};
 
     if (filtersAreActive()) {
+      performanceCounter.trackActionStartTime(kGetLeafNodesFilterResults);
+
       var leafNodesFilterResults =
           widget.leafNodes.where((n) => applyFilters(n)).toList();
+
+      performanceCounter.trackActionFinishTime(kGetLeafNodesFilterResults);
+
+      performanceCounter.trackActionStartTime(kLoopleafNodesFilterResults);
 
       for (var leafNode in leafNodesFilterResults) {
         TreeNode currentNode = leafNode;
@@ -487,14 +514,28 @@ class _AssetPageState extends State<AssetPage> {
           currentNode = currentNode.parentNode!;
         }
       }
+
+      performanceCounter.trackActionFinishTime(kLoopleafNodesFilterResults);
     } else {
+      performanceCounter.trackActionStartTime(kCollapseAllNodes);
+
       collapseAllNodes();
+
+      performanceCounter.trackActionFinishTime(kCollapseAllNodes);
     }
+
+    performanceCounter.trackActionStartTime(kBuildSearchTree);
 
     TreeBuilder searchTreeBuilder =
         TreeBuilder(searchTreeAssets, searchTreeLocations);
 
     searchTree = searchTreeBuilder.buildTree();
+
+    performanceCounter.trackActionFinishTime(kBuildSearchTree);
+
+    performanceCounter.trackActionFinishTime(kActionRefreshSearchTreeCall);
+
+    performanceCounter.printPerformanceReport();
   }
 
   void collapseAllNodes() {
