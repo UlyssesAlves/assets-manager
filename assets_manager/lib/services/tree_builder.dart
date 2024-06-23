@@ -5,12 +5,14 @@ import 'package:assets_manager/model/data_model/location.dart';
 class TreeBuilder {
   final Map<String, Asset> _assets;
   final Map<String, Location> _locations;
+  final List<TreeNode> _leafNodes = [];
+  List<TreeNode> get leafNodes => _leafNodes;
 
   TreeBuilder(this._assets, this._locations);
 
-  final TreeNode _rootNode = TreeNode("0", "ROOT NODE", parentId: null);
+  final TreeNode _rootNode = TreeNode(kRootNodeId, kRootNodeId, parentId: null);
 
-  Future<TreeNode> buildTree() async {
+  TreeNode buildTree() {
     for (var location in _locations.values) {
       if (location.isSubLocation) {
         var parentLocation = _locations[location.parentId];
@@ -56,6 +58,8 @@ class TreeBuilder {
       }
     }
 
+    _setLeafNodes();
+
     return _rootNode;
   }
 
@@ -67,5 +71,10 @@ class TreeBuilder {
   void setRootAsParentNode(TreeNode node) {
     _rootNode.addChild(node);
     node.parentNode = _rootNode;
+  }
+
+  void _setLeafNodes() {
+    _leafNodes.addAll(_locations.values.where((l) => !l.hasChildren));
+    _leafNodes.addAll(_assets.values.where((a) => !a.hasChildren));
   }
 }

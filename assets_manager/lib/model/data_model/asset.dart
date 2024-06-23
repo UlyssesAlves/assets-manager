@@ -32,4 +32,23 @@ class Asset extends TreeNode {
 
   List<Asset>? get components =>
       subAssets?.where((a) => a.isComponent).toList();
+
+  @override
+  TreeNode copy() {
+    return Asset(
+      status,
+      id,
+      name,
+      parentId,
+      gatewayId,
+      locationId: locationId,
+      sensorId: sensorId,
+      sensorType: sensorType,
+    );
+  }
+
+  @override
+  String toString() {
+    return '$name ($id)';
+  }
 }

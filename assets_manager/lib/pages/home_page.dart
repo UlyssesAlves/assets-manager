@@ -1,6 +1,9 @@
 import 'package:assets_manager/components/simple_button_with_icon.dart';
 import 'package:assets_manager/constants/spacings.dart';
+import 'package:assets_manager/model/data_model/asset.dart';
 import 'package:assets_manager/model/data_model/company.dart';
+import 'package:assets_manager/model/data_model/location.dart';
+import 'package:assets_manager/model/data_model/tree_node.dart';
 import 'package:assets_manager/pages/asset_page.dart';
 import 'package:assets_manager/services/api_service.dart';
 import 'package:assets_manager/services/dialogs_service.dart';
@@ -113,14 +116,22 @@ class _HomePageState extends State<HomePage> {
     try {
       DialogsService dialogsService = DialogsService(context);
 
-      var assetTree = await dialogsService.awaitProcessToExecute(() async {
-        var companyAssets = await apiService.getCompanyAssets(company.id);
+      Map<String, Asset> companyAssetsMap = {};
+      Map<String, Location> companyLocationsMap = {};
+      List<TreeNode> leafNodes = [];
+      TreeNode? assetTree;
 
-        var companyLocations = await apiService.getCompanyLocations(company.id);
+      await dialogsService.awaitProcessToExecute(() async {
+        companyAssetsMap = await apiService.getCompanyAssets(company.id);
 
-        TreeBuilder treeBuilder = TreeBuilder(companyAssets, companyLocations);
+        companyLocationsMap = await apiService.getCompanyLocations(company.id);
 
-        return treeBuilder.buildTree();
+        TreeBuilder assetsTreeBuilder =
+            TreeBuilder(companyAssetsMap, companyLocationsMap);
+
+        assetTree = assetsTreeBuilder.buildTree();
+
+        leafNodes = assetsTreeBuilder.leafNodes;
       }, 'Loading Company Assets');
 
       print('Finished loading assets.');
@@ -128,7 +139,8 @@ class _HomePageState extends State<HomePage> {
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => AssetPage(assetTree, company.name),
+          builder: (context) => AssetPage(assetTree!, company.name,
+              companyAssetsMap, companyLocationsMap, leafNodes),
         ),
       );
     } catch (e) {

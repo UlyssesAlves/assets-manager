@@ -11,4 +11,14 @@ class Location extends TreeNode {
 
   Location? parentLocation;
   List<Location>? subLocations;
+
+  @override
+  TreeNode copy() {
+    return Location(id, name, parentId);
+  }
+
+  @override
+  String toString() {
+    return '$name ($id)';
+  }
 }

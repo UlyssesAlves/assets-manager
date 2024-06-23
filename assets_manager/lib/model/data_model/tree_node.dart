@@ -1,6 +1,8 @@
 import 'package:assets_manager/model/data_model/asset.dart';
 import 'package:assets_manager/model/data_model/location.dart';
 
+const String kRootNodeId = "ROOT NODE";
+
 /// Represents a generic item which can be part of the tree.
 class TreeNode {
   final String id;
@@ -10,6 +12,8 @@ class TreeNode {
   TreeNode(this.id, this.name, {this.parentId});
 
   bool get hasParentId => parentId?.isNotEmpty ?? false;
+
+  bool get isRootNode => id == kRootNodeId && name == kRootNodeId;
 
   List<TreeNode> _children = [];
   TreeNode? _parentNode;
@@ -26,9 +30,11 @@ class TreeNode {
     _collapsed = !_collapsed;
   }
 
-  set parentNode(TreeNode parent) {
+  set parentNode(TreeNode? parent) {
     _parentNode = parent;
   }
+
+  TreeNode? get parentNode => _parentNode;
 
   List<TreeNode> get children => _children;
 
@@ -93,5 +99,9 @@ class TreeNode {
     }
 
     return false;
+  }
+
+  TreeNode copy() {
+    return TreeNode(id, name, parentId: parentId);
   }
 }

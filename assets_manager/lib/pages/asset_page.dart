@@ -1,14 +1,21 @@
 import 'package:assets_manager/components/simple_button_with_icon.dart';
 import 'package:assets_manager/constants/styles.dart';
+import 'package:assets_manager/model/data_model/asset.dart';
+import 'package:assets_manager/model/data_model/location.dart';
 import 'package:assets_manager/model/data_model/tree_node.dart';
+import 'package:assets_manager/services/tree_builder.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class AssetPage extends StatefulWidget {
-  AssetPage(this.assetsTree, this.companyName);
+  AssetPage(this.assetsTree, this.companyName, this.companyAssetsMap,
+      this.companyLocationsMap, this.leafNodes);
 
   final TreeNode assetsTree;
+  final List<TreeNode> leafNodes;
+  final Map<String, Asset> companyAssetsMap;
+  final Map<String, Location> companyLocationsMap;
   final String companyName;
 
   @override
@@ -21,6 +28,7 @@ class _AssetPageState extends State<AssetPage> {
 
   final scrollController = ScrollController();
   TreeNode paginatedAssetsTree = TreeNode('0', 'PAGINATED-TREE');
+  TreeNode searchTree = TreeNode('1', 'SEARCH-TREE');
 
   /// How many items are loaded to increase the tree each time the user hits the bottom of the scroller.
   final pageSize = 50;
@@ -48,6 +56,8 @@ class _AssetPageState extends State<AssetPage> {
     textFilterController?.addListener(() {
       setState(() {
         textFilter = textFilterController?.text.toLowerCase() ?? '';
+
+        refreshSearchTree();
       });
     });
   }
@@ -62,6 +72,14 @@ class _AssetPageState extends State<AssetPage> {
   void loadMoreItems() {
     if (scrollController.position.pixels ==
         scrollController.position.maxScrollExtent) {
+      if (filtersAreActive() && totalLoadedItems < totalItems) {
+        showToastMessage(
+            "Please remove the filters to load more items into the list.",
+            Colors.brown);
+
+        return;
+      }
+
       if (totalLoadedItems == totalItems) {
         return;
       }
@@ -88,14 +106,8 @@ class _AssetPageState extends State<AssetPage> {
     if (totalItems - totalLoadedItems > pageSize) {
       totalItemsToAdd = pageSize;
 
-      if (filtersAreActive()) {
-        toastMessage =
-            "Remove the filters to view the new items justed loaded into the list.";
-        toastBackgroundColor = Colors.brown;
-      } else {
-        toastMessage = "Scroll down to view more items.";
-        toastBackgroundColor = Colors.black;
-      }
+      toastMessage = "Scroll upwards to load more items.";
+      toastBackgroundColor = Colors.black;
     } else {
       totalItemsToAdd = totalItems - totalLoadedItems;
       toastMessage = 'Finished loading all items.';
@@ -105,6 +117,10 @@ class _AssetPageState extends State<AssetPage> {
     paginatedAssetsTree.children.addAll(widget.assetsTree.children
         .getRange(totalLoadedItems, totalLoadedItems + totalItemsToAdd));
 
+    showToastMessage(toastMessage, toastBackgroundColor);
+  }
+
+  void showToastMessage(String toastMessage, Color toastBackgroundColor) {
     Fluttertoast.showToast(
         msg: toastMessage,
         toastLength: Toast.LENGTH_LONG,
@@ -157,6 +173,8 @@ class _AssetPageState extends State<AssetPage> {
                   () {
                     setState(() {
                       filterEnergySensor = !filterEnergySensor;
+
+                      refreshSearchTree();
                     });
                   },
                   foregroundColor:
@@ -176,6 +194,8 @@ class _AssetPageState extends State<AssetPage> {
                   () {
                     setState(() {
                       filterCriticalSensorStatus = !filterCriticalSensorStatus;
+
+                      refreshSearchTree();
                     });
                   },
                   foregroundColor: buttonFilterForegroundColorByState[
@@ -190,18 +210,20 @@ class _AssetPageState extends State<AssetPage> {
             Expanded(
               child: ListView.builder(
                 controller: scrollController,
-                itemCount: totalLoadedItems,
+                itemCount: filtersAreActive()
+                    ? searchTree.children.length
+                    : totalLoadedItems,
                 itemBuilder: ((context, index) {
-                  var nodeToBuild = paginatedAssetsTree.children[index];
+                  if (filtersAreActive()) {
+                    TreeNode filteredLeafNodeToBuild =
+                        searchTree.children[index];
 
-                  if (applyFilters(nodeToBuild)) {
-                    if (filtersAreActive()) {
-                      nodeToBuild.setCollapsed = false;
-                    }
-
-                    return buildItemView(nodeToBuild);
+                    return buildItemView(filteredLeafNodeToBuild);
                   } else {
-                    return const SizedBox.shrink();
+                    var paginatedNodeToBuild =
+                        paginatedAssetsTree.children[index];
+
+                    return buildItemView(paginatedNodeToBuild);
                   }
                 }),
               ),
@@ -210,6 +232,12 @@ class _AssetPageState extends State<AssetPage> {
         ),
       ),
     );
+  }
+
+  TreeNode? getMapNodeReference(TreeNode node) {
+    return node.isLocation
+        ? widget.companyLocationsMap[node.id]
+        : widget.companyAssetsMap[node.id];
   }
 
   bool applyFilters(TreeNode item) =>
@@ -337,5 +365,48 @@ class _AssetPageState extends State<AssetPage> {
     return textFilter.isNotEmpty ||
         filterCriticalSensorStatus ||
         filterEnergySensor;
+  }
+
+  void refreshSearchTree() {
+    Map<String, Asset> searchTreeAssets = {};
+    Map<String, Location> searchTreeLocations = {};
+
+    if (filtersAreActive()) {
+      var leafNodesFilterResults =
+          widget.leafNodes.where((n) => applyFilters(n)).toList();
+
+      for (var leafNode in leafNodesFilterResults) {
+        TreeNode currentNode = leafNode;
+
+        currentNode.setCollapsed = false;
+
+        while (!currentNode.isRootNode) {
+          if (currentNode.isAsset &&
+              !searchTreeAssets.containsKey(currentNode.id)) {
+            var currentNodeCopy = currentNode.copy() as Asset;
+
+            currentNodeCopy.setCollapsed = false;
+            getMapNodeReference(currentNode)?.setCollapsed = false;
+
+            searchTreeAssets[currentNode.id] = currentNodeCopy;
+          } else if (currentNode.isLocation &&
+              !searchTreeLocations.containsKey(currentNode.id)) {
+            var currentNodeCopy = currentNode.copy() as Location;
+
+            currentNodeCopy.setCollapsed = false;
+            getMapNodeReference(currentNode)?.setCollapsed = false;
+
+            searchTreeLocations[currentNode.id] = currentNodeCopy;
+          }
+
+          currentNode = currentNode.parentNode!;
+        }
+      }
+    }
+
+    TreeBuilder searchTreeBuilder =
+        TreeBuilder(searchTreeAssets, searchTreeLocations);
+
+    searchTree = searchTreeBuilder.buildTree();
   }
 }
