@@ -23,8 +23,12 @@ class AssetPage extends StatefulWidget {
 }
 
 class _AssetPageState extends State<AssetPage> {
-  String textFilter = '';
-  bool filterEnergySensor = false, filterCriticalSensorStatus = false;
+  String appliedTextFilter = '';
+  String? textFilterCurrentValue;
+  bool appliedFilterEnergySensor = false,
+      appliedFilterCriticalSensorStatus = false;
+  bool energySensorFilterButtonState = false,
+      criticalSensorStatusFilterButtonState = false;
 
   final scrollController = ScrollController();
   TreeNode paginatedAssetsTree = TreeNode('0', 'PAGINATED-TREE');
@@ -55,9 +59,7 @@ class _AssetPageState extends State<AssetPage> {
 
     textFilterController?.addListener(() {
       setState(() {
-        textFilter = textFilterController?.text.toLowerCase() ?? '';
-
-        refreshSearchTree();
+        textFilterCurrentValue = textFilterController?.text;
       });
     });
   }
@@ -144,43 +146,51 @@ class _AssetPageState extends State<AssetPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: textFilterController,
-              style: const TextStyle(
-                color: kAssetsSearchInactiveFilterForegroundColor,
-                fontFamily: 'Regular',
-                fontSize: 14,
-              ),
-              decoration: const InputDecoration(
-                filled: true,
-                fillColor: Color.fromARGB(255, 234, 239, 243),
-                hintText: 'Buscar Ativo ou Local',
-                prefixIcon: Icon(
-                  FontAwesomeIcons.magnifyingGlass,
-                  color: kAssetsSearchInactiveFilterForegroundColor,
-                  size: 16,
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 38,
+                    child: TextField(
+                      controller: textFilterController,
+                      style: const TextStyle(
+                        color: kAssetsSearchInactiveFilterForegroundColor,
+                        fontFamily: 'Regular',
+                        fontSize: 14,
+                      ),
+                      decoration: const InputDecoration(
+                        filled: true,
+                        fillColor: Color.fromARGB(255, 234, 239, 243),
+                        hintText: 'Buscar Ativo ou Local',
+                        prefixIcon: Icon(
+                          FontAwesomeIcons.magnifyingGlass,
+                          color: kAssetsSearchInactiveFilterForegroundColor,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
             Row(
               children: [
                 SimpleButtonWithIcon(
                   'Sensor de Energia',
-                  Icon(
+                  const Icon(
                     FontAwesomeIcons.boltLightning,
                     size: 16,
                   ),
                   () {
                     setState(() {
-                      filterEnergySensor = !filterEnergySensor;
-
-                      refreshSearchTree();
+                      energySensorFilterButtonState =
+                          !energySensorFilterButtonState;
                     });
                   },
-                  foregroundColor:
-                      buttonFilterForegroundColorByState[filterEnergySensor],
-                  backgroundColor:
-                      buttonFilterBackgroundColorByState[filterEnergySensor],
+                  foregroundColor: buttonFilterForegroundColorByState[
+                      energySensorFilterButtonState],
+                  backgroundColor: buttonFilterBackgroundColorByState[
+                      energySensorFilterButtonState],
                 ),
                 SizedBox(
                   width: 8,
@@ -193,19 +203,88 @@ class _AssetPageState extends State<AssetPage> {
                   ),
                   () {
                     setState(() {
-                      filterCriticalSensorStatus = !filterCriticalSensorStatus;
-
-                      refreshSearchTree();
+                      criticalSensorStatusFilterButtonState =
+                          !criticalSensorStatusFilterButtonState;
                     });
                   },
                   foregroundColor: buttonFilterForegroundColorByState[
-                      filterCriticalSensorStatus],
+                      criticalSensorStatusFilterButtonState],
                   backgroundColor: buttonFilterBackgroundColorByState[
-                      filterCriticalSensorStatus],
+                      criticalSensorStatusFilterButtonState],
                 )
               ],
             ),
+            Row(
+              children: [
+                Expanded(
+                  child: SimpleButtonWithIcon(
+                    'Aplicar Filtros',
+                    const Icon(
+                      FontAwesomeIcons.magnifyingGlass,
+                      size: 16,
+                    ),
+                    shouldEnableApplyFiltersButton()
+                        ? () {
+                            setState(() {
+                              appliedTextFilter =
+                                  textFilterController?.text.toLowerCase() ??
+                                      '';
+                              appliedFilterEnergySensor =
+                                  energySensorFilterButtonState;
+                              appliedFilterCriticalSensorStatus =
+                                  criticalSensorStatusFilterButtonState;
+
+                              refreshSearchTree();
+                            });
+                          }
+                        : null,
+                    backgroundColor: shouldEnableApplyFiltersButton()
+                        ? Colors.green
+                        : Colors.grey,
+                  ),
+                ),
+                SizedBox(
+                  width: 20,
+                ),
+                Expanded(
+                  child: SimpleButtonWithIcon(
+                    'Limpar Filtros',
+                    const Icon(
+                      FontAwesomeIcons.ban,
+                      size: 16,
+                    ),
+                    () {
+                      setState(() {
+                        textFilterController?.clear();
+                        appliedTextFilter = '';
+
+                        appliedFilterEnergySensor = false;
+                        energySensorFilterButtonState = false;
+
+                        appliedFilterCriticalSensorStatus = false;
+                        criticalSensorStatusFilterButtonState = false;
+
+                        refreshSearchTree();
+                      });
+                    },
+                    backgroundColor: Colors.red,
+                  ),
+                ),
+              ],
+            ),
             const Divider(),
+            Visibility(
+              visible: filtersAreActive() && !searchTree.hasChildren,
+              child: Center(
+                child: Text(
+                  'Não foram encontrados itens com os filtros informados. Por favor, altere ou limpe os filtros e tente novamente.',
+                  style: TextStyle(
+                    fontStyle: FontStyle.italic,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+            ),
             // TODO: allow the user to horizontally scroll the assets tree to view text which goes beyond the screen limits.
             Expanded(
               child: ListView.builder(
@@ -234,6 +313,12 @@ class _AssetPageState extends State<AssetPage> {
     );
   }
 
+  bool shouldEnableApplyFiltersButton() {
+    return (textFilterCurrentValue != null && textFilterCurrentValue != '') ||
+        energySensorFilterButtonState ||
+        criticalSensorStatusFilterButtonState;
+  }
+
   TreeNode? getMapNodeReference(TreeNode node) {
     return node.isLocation
         ? widget.companyLocationsMap[node.id]
@@ -241,9 +326,9 @@ class _AssetPageState extends State<AssetPage> {
   }
 
   bool applyFilters(TreeNode item) =>
-      item.matchesTextFilter(textFilter) &&
-      item.matchesEnergySensorFilter(filterEnergySensor) &&
-      item.matchesCriticalSensorStatusFilter(filterCriticalSensorStatus);
+      item.matchesTextFilter(appliedTextFilter) &&
+      item.matchesEnergySensorFilter(appliedFilterEnergySensor) &&
+      item.matchesCriticalSensorStatusFilter(appliedFilterCriticalSensorStatus);
 
   Container buildItemView(TreeNode item) {
     List<Widget> itemViewMainColumnComponents = [
@@ -362,9 +447,9 @@ class _AssetPageState extends State<AssetPage> {
   }
 
   bool filtersAreActive() {
-    return textFilter.isNotEmpty ||
-        filterCriticalSensorStatus ||
-        filterEnergySensor;
+    return appliedTextFilter.isNotEmpty ||
+        appliedFilterCriticalSensorStatus ||
+        appliedFilterEnergySensor;
   }
 
   void refreshSearchTree() {
