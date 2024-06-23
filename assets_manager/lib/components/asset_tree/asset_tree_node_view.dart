@@ -41,6 +41,9 @@ class AssetTreeNodeView extends StatelessWidget {
                 item.name,
                 overflow: TextOverflow.fade,
               ),
+              SizedBox(
+                width: 3,
+              ),
               Visibility(
                 visible: item.hasEnergySensor,
                 maintainSize: false,
@@ -79,8 +82,8 @@ class AssetTreeNodeView extends StatelessWidget {
         IntrinsicHeight(
           child: Row(
             children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 3),
+              const Padding(
+                padding: EdgeInsets.only(left: 3),
                 child: VerticalDivider(
                   color: Colors.grey,
                   thickness: 1,
