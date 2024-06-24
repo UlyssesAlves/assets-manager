@@ -49,6 +49,6 @@ class Asset extends TreeNode {
 
   @override
   String toString() {
-    return '$name ($id)';
+    return '[ASSET] $name ($id)';
   }
 }

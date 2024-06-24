@@ -5,8 +5,20 @@ const kGetLeafNodesFilterResults = 'getLeafNodesFilterResults';
 const kLoopleafNodesFilterResults = 'LoopleafNodesFilterResults';
 const kCollapseAllNodes = 'collapseAllNodes';
 const kBuildSearchTree = 'buildSearchTree';
+const kActionBuildAssetsPage = 'BuildAssetsPage';
+const kActionBuildTreeNode = 'BuildTreeNode';
 
 class PerformanceCounter {
+  static final PerformanceCounter _instance = PerformanceCounter._internal();
+
+  factory PerformanceCounter(bool logActionsTracking) {
+    return _instance..logActionsTracking = logActionsTracking;
+  }
+
+  bool logActionsTracking = true;
+
+  PerformanceCounter._internal();
+
   Map<String, PerformanceCounterItem> _actionsMap = {};
 
   void trackActionStartTime(String key) {
@@ -14,7 +26,9 @@ class PerformanceCounter {
 
     _actionsMap[key] = PerformanceCounterItem(key, DateTime.now());
 
-    print('Action $key started at $now');
+    if (logActionsTracking) {
+      print('Action $key started at $now');
+    }
   }
 
   void trackActionFinishTime(String key) {
@@ -27,7 +41,9 @@ class PerformanceCounter {
 
     _actionsMap[key]?.finishTime = now;
 
-    print('Action $key finished at $now');
+    if (logActionsTracking) {
+      print('Action $key finished at $now');
+    }
   }
 
   void printWorsePerformanceTrackedSoFar() {
@@ -40,14 +56,22 @@ class PerformanceCounter {
   }
 
   void printPerformanceReport() {
-    print('### PERFORMANCE REPORT ###');
+    print('### PERFORMANCE REPORT - HIGHEST TO LOWEST PERFORMANCE ACTIONS ###');
 
     List<PerformanceCounterItem> listOfActions =
         getlistOfActionsOrderedByPerformance();
 
     for (var action in listOfActions) {
+      int delayDifferenceComparedToBestPerformingAction =
+          action.ellapsedTime!.inMicroseconds -
+              listOfActions.first.ellapsedTime!.inMicroseconds;
+
+      final performanceDecayComparedToBestPerformingAction =
+          delayDifferenceComparedToBestPerformingAction /
+              listOfActions.first.ellapsedTime!.inMicroseconds;
+
       print(
-          '${listOfActions.indexOf(action) + 1}º Action ${action.key} took ${action.ellapsedTime} to execute.');
+          '${listOfActions.indexOf(action) + 1}º EllapsedTime = ${action.ellapsedTime}, PerformanceDecrease = ${performanceDecayComparedToBestPerformingAction.toStringAsFixed(0)}%, Action = ${action.key}');
     }
   }
 
@@ -57,5 +81,11 @@ class PerformanceCounter {
     listOfActions.sort();
 
     return listOfActions;
+  }
+
+  void reset() {
+    print('Performance tracker reset and ready to build next report.');
+
+    _actionsMap.clear();
   }
 }

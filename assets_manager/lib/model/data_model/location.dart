@@ -19,6 +19,6 @@ class Location extends TreeNode {
 
   @override
   String toString() {
-    return '$name ($id)';
+    return '[LOCATION] $name ($id)';
   }
 }

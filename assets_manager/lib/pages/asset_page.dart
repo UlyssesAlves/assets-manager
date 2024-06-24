@@ -1,10 +1,11 @@
 import 'package:assets_manager/components/asset_tree/asset_tree_node_view.dart';
 import 'package:assets_manager/components/simple_button_with_icon.dart';
 import 'package:assets_manager/constants/styles.dart';
+import 'package:assets_manager/infrastructure/performance_counter.dart';
 import 'package:assets_manager/model/data_model/asset.dart';
+import 'package:assets_manager/model/data_model/filter_cache_item.dart';
 import 'package:assets_manager/model/data_model/location.dart';
 import 'package:assets_manager/model/data_model/tree_node.dart';
-import 'package:assets_manager/services/dialogs_service.dart';
 import 'package:assets_manager/services/tree_builder.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -26,17 +27,21 @@ class AssetPage extends StatefulWidget {
 }
 
 class _AssetPageState extends State<AssetPage> {
+  PerformanceCounter performanceCounter = PerformanceCounter(false);
   String appliedTextFilter = '';
   String? textFilterCurrentValue;
   bool appliedFilterEnergySensor = false,
       appliedFilterCriticalSensorStatus = false;
   bool energySensorFilterButtonState = false,
       criticalSensorStatusFilterButtonState = false;
+  bool applyingFilters = false;
 
   final scrollController = ScrollController();
   TreeNode paginatedAssetsTree = TreeNode('0', 'PAGINATED-TREE');
   TreeNode searchTree = TreeNode('1', 'SEARCH-TREE');
   Map<String, bool> automaticallyExpandedNodesAfterLatestFilterApplication = {};
+  Map<String, TreeNode> searchTreeCache = {};
+  double assetsTreeListViewBuildingProgress = 0.0;
 
   /// How many items are loaded to increase the tree each time the user hits the bottom of the scroller.
   final pageSize = 50;
@@ -138,7 +143,9 @@ class _AssetPageState extends State<AssetPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    performanceCounter.trackActionStartTime(kActionBuildAssetsPage);
+
+    final widgetTree = Scaffold(
       appBar: AppBar(
         title: Text(
           '${widget.companyName} Assets',
@@ -230,6 +237,8 @@ class _AssetPageState extends State<AssetPage> {
                     shouldEnableApplyFiltersButton()
                         ? () async {
                             setState(() {
+                              applyingFilters = true;
+
                               appliedTextFilter =
                                   textFilterController?.text.toLowerCase() ??
                                       '';
@@ -241,19 +250,12 @@ class _AssetPageState extends State<AssetPage> {
                               clearSearchTree();
                             });
 
-                            DialogsService dialogService =
-                                DialogsService(context);
-
-                            dialogService
-                                .showLoadingAnimation('Aplicando filtros.');
-
                             await Future.delayed(
                                 const Duration(milliseconds: 750));
 
-                            dialogService.closePopup();
-
                             setState(() {
                               refreshSearchTree();
+                              applyingFilters = false;
                             });
                           }
                         : null,
@@ -293,7 +295,9 @@ class _AssetPageState extends State<AssetPage> {
             ),
             const Divider(),
             Visibility(
-              visible: filtersAreActive() && !searchTree.hasChildren,
+              visible: !applyingFilters &&
+                  filtersAreActive() &&
+                  !searchTree.hasChildren,
               child: const Center(
                 child: Text(
                   'Não foram encontrados itens com os filtros informados. Por favor, altere ou limpe os filtros e tente novamente.',
@@ -304,14 +308,30 @@ class _AssetPageState extends State<AssetPage> {
                 ),
               ),
             ),
+            Center(
+              child: Visibility(
+                visible: applyingFilters,
+                child: Column(
+                  children: [
+                    Text('Aplicando filtros. Por favor, aguarde...'),
+                    SizedBox(
+                      height: 10,
+                    ),
+                    CircularProgressIndicator(
+                      value: null,
+                    ),
+                  ],
+                ),
+              ),
+            ),
             // TODO: allow the user to horizontally scroll the assets tree to view text which goes beyond the screen limits.
             Expanded(
               child: ListView.builder(
                 controller: scrollController,
                 itemCount: getAssetsTreeListViewItemsCount(),
                 itemBuilder: ((context, index) {
-                  print(
-                      'Building item ${index + 1}/${getAssetsTreeListViewItemsCount()}');
+                  assetsTreeListViewBuildingProgress =
+                      index / getAssetsTreeListViewItemsCount();
 
                   TreeNode treeNodeToBuild;
 
@@ -333,6 +353,12 @@ class _AssetPageState extends State<AssetPage> {
         ),
       ),
     );
+
+    performanceCounter.trackActionFinishTime(kActionBuildAssetsPage);
+
+    performanceCounter.printPerformanceReport();
+
+    return widgetTree;
   }
 
   int getAssetsTreeListViewItemsCount() {
@@ -379,12 +405,8 @@ class _AssetPageState extends State<AssetPage> {
 
       if (nodeHasAlreadyBeenAutomaticallyExpandedAfterLatestFilterApplication ==
           true) {
-        print(
-            'Node $node will not be automatically expanded because it has already happened after the latest filter application.');
         return;
       }
-
-      print('Automatically expanding node $node.');
 
       automaticallyExpandedNodesAfterLatestFilterApplication[node.toString()] =
           true;
@@ -402,14 +424,35 @@ class _AssetPageState extends State<AssetPage> {
   }
 
   void clearSearchTree() {
-    buildSearchTree({}, {});
+    searchTree = buildSearchTree({}, {});
   }
 
   void refreshSearchTree() {
+    performanceCounter.trackActionStartTime(kActionRefreshSearchTreeCall);
+
+    if (!filtersAreActive()) {
+      collapseAllNodes();
+    }
+
+    searchTree = getNewSearchTree();
+
+    performanceCounter.trackActionFinishTime(kActionRefreshSearchTreeCall);
+  }
+
+  TreeNode getNewSearchTree() {
     Map<String, Asset> searchTreeAssets = {};
     Map<String, Location> searchTreeLocations = {};
 
+    final FilterCacheKey filterCacheKey = FilterCacheKey(appliedTextFilter,
+        appliedFilterEnergySensor, appliedFilterCriticalSensorStatus);
+
     if (filtersAreActive()) {
+      if (searchTreeCache.containsKey(filterCacheKey.key)) {
+        print('Using search tree from cache.');
+
+        return searchTreeCache[filterCacheKey.key]!;
+      }
+
       resetCacheAutomaticallyExpandedNodesAfterLatestFilterApplication();
 
       List<TreeNode> leafNodesFilterResults = getLeafNodesFilterResults();
@@ -433,19 +476,23 @@ class _AssetPageState extends State<AssetPage> {
           currentNode = currentNode.parentNode!;
         }
       }
-    } else {
-      collapseAllNodes();
     }
 
-    buildSearchTree(searchTreeAssets, searchTreeLocations);
+    var newSearchTree = buildSearchTree(searchTreeAssets, searchTreeLocations);
+
+    if (filtersAreActive()) {
+      searchTreeCache[filterCacheKey.key] = newSearchTree;
+    }
+
+    return newSearchTree;
   }
 
-  void buildSearchTree(Map<String, Asset> searchTreeAssets,
+  TreeNode buildSearchTree(Map<String, Asset> searchTreeAssets,
       Map<String, Location> searchTreeLocations) {
     TreeBuilder searchTreeBuilder =
         TreeBuilder(searchTreeAssets, searchTreeLocations);
 
-    searchTree = searchTreeBuilder.buildTree();
+    return searchTreeBuilder.buildTree();
   }
 
   List<TreeNode> getLeafNodesFilterResults() {

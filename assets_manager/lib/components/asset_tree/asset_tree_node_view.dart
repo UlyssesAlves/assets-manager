@@ -1,3 +1,4 @@
+import 'package:assets_manager/infrastructure/performance_counter.dart';
 import 'package:assets_manager/model/data_model/tree_node.dart';
 import 'package:flutter/material.dart';
 
@@ -9,7 +10,9 @@ class AssetTreeNodeView extends StatelessWidget {
   final Function(TreeNode) onNodeTap;
   final Function(VisibilityInfo, TreeNode) onVisibilityChanged;
 
-  const AssetTreeNodeView(
+  final PerformanceCounter _performanceCounter = PerformanceCounter(false);
+
+  AssetTreeNodeView(
     this.item,
     this.onNodeTap,
     this.onVisibilityChanged, {
@@ -18,6 +21,8 @@ class AssetTreeNodeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    _performanceCounter.trackActionStartTime(performanceCounterTrackingKey);
+
     List<Widget> itemViewMainColumnComponents = [
       VisibilityDetector(
         key: Key(item.toString()),
@@ -108,10 +113,16 @@ class AssetTreeNodeView extends StatelessWidget {
       );
     }
 
-    return Column(
+    var nodeView = Column(
       children: itemViewMainColumnComponents,
     );
+
+    _performanceCounter.trackActionFinishTime(performanceCounterTrackingKey);
+
+    return nodeView;
   }
+
+  String get performanceCounterTrackingKey => 'kActionBuildTreeNode $item';
 
   Image getItemIcon(TreeNode item) {
     String iconImageFileNameWithoutExtension;
