@@ -4,6 +4,7 @@ import 'package:assets_manager/constants/styles.dart';
 import 'package:assets_manager/model/data_model/asset.dart';
 import 'package:assets_manager/model/data_model/location.dart';
 import 'package:assets_manager/model/data_model/tree_node.dart';
+import 'package:assets_manager/services/dialogs_service.dart';
 import 'package:assets_manager/services/tree_builder.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -227,7 +228,7 @@ class _AssetPageState extends State<AssetPage> {
                       size: 16,
                     ),
                     shouldEnableApplyFiltersButton()
-                        ? () {
+                        ? () async {
                             setState(() {
                               appliedTextFilter =
                                   textFilterController?.text.toLowerCase() ??
@@ -237,6 +238,21 @@ class _AssetPageState extends State<AssetPage> {
                               appliedFilterCriticalSensorStatus =
                                   criticalSensorStatusFilterButtonState;
 
+                              clearSearchTree();
+                            });
+
+                            DialogsService dialogService =
+                                DialogsService(context);
+
+                            dialogService
+                                .showLoadingAnimation('Aplicando filtros.');
+
+                            await Future.delayed(
+                                const Duration(milliseconds: 750));
+
+                            dialogService.closePopup();
+
+                            setState(() {
                               refreshSearchTree();
                             });
                           }
@@ -292,15 +308,15 @@ class _AssetPageState extends State<AssetPage> {
             Expanded(
               child: ListView.builder(
                 controller: scrollController,
-                itemCount: filtersAreActive()
-                    ? searchTree.children.length
-                    : totalLoadedItems,
+                itemCount: getAssetsTreeListViewItemsCount(),
                 itemBuilder: ((context, index) {
+                  print(
+                      'Building item ${index + 1}/${getAssetsTreeListViewItemsCount()}');
+
                   TreeNode treeNodeToBuild;
 
                   if (filtersAreActive()) {
                     treeNodeToBuild = searchTree.children[index];
-                    treeNodeToBuild.expand();
                   } else {
                     treeNodeToBuild = paginatedAssetsTree.children[index];
                   }
@@ -317,6 +333,10 @@ class _AssetPageState extends State<AssetPage> {
         ),
       ),
     );
+  }
+
+  int getAssetsTreeListViewItemsCount() {
+    return filtersAreActive() ? searchTree.children.length : totalLoadedItems;
   }
 
   bool shouldEnableApplyFiltersButton() {
@@ -345,12 +365,14 @@ class _AssetPageState extends State<AssetPage> {
   }
 
   void nodeVisibilityChanged(VisibilityInfo visibilityInfo, TreeNode node) {
-    bool nodeIsFullyVisible = visibilityInfo.visibleFraction == 1;
+    bool nodeIsFullyVisible = visibilityInfo.visibleFraction > 0;
 
-    if (nodeIsFullyVisible &&
+    bool shouldAutomaticallyExpandNode = nodeIsFullyVisible &&
         node.hasChildren &&
         node.isCollapsed &&
-        filtersAreActive()) {
+        filtersAreActive();
+
+    if (shouldAutomaticallyExpandNode) {
       var nodeHasAlreadyBeenAutomaticallyExpandedAfterLatestFilterApplication =
           automaticallyExpandedNodesAfterLatestFilterApplication[
               node.toString()];
@@ -377,6 +399,10 @@ class _AssetPageState extends State<AssetPage> {
     return appliedTextFilter.isNotEmpty ||
         appliedFilterCriticalSensorStatus ||
         appliedFilterEnergySensor;
+  }
+
+  void clearSearchTree() {
+    buildSearchTree({}, {});
   }
 
   void refreshSearchTree() {
@@ -411,6 +437,11 @@ class _AssetPageState extends State<AssetPage> {
       collapseAllNodes();
     }
 
+    buildSearchTree(searchTreeAssets, searchTreeLocations);
+  }
+
+  void buildSearchTree(Map<String, Asset> searchTreeAssets,
+      Map<String, Location> searchTreeLocations) {
     TreeBuilder searchTreeBuilder =
         TreeBuilder(searchTreeAssets, searchTreeLocations);
 
