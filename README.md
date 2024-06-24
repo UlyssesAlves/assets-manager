@@ -8,6 +8,8 @@ This project is my solution for Tractian Mobile Software Engine challenge.
 
 Here is my demonstration of the app in video format.
 
+https://github.com/UlyssesAlves/assets-manager/assets/2872102/eb9ec34a-99b3-484a-8c40-79c05f4dcce1
+
 ## What Would I Improve If I Had More Time?
 
 I've implemented all the requirements for this challenge project. But as with any project time is finite, which means we can always focus on implementing the most important features and solve the most problematic errors first, leaving secondary features and minor changes and bugs to be implemented or fixed on the next versions of the software.
