@@ -30,7 +30,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void refreshCompanies() {
-    _companiesFuture = apiService.getCompanies();
+    _companiesFuture = apiService.getCompanies(context);
     _refreshKey = UniqueKey();
   }
 
@@ -56,7 +56,15 @@ class _HomePageState extends State<HomePage> {
             } else if (snapshot.hasError) {
               // TODO: improve GUI for error state.
               gui.addAll([
-                const Text('Error while trying to load companies.'),
+                const Center(
+                  child: Text(
+                    'Erro tentando carregar os assets da empresa selecionada. Por favor, tente novamente.',
+                    style: TextStyle(
+                      fontStyle: FontStyle.italic,
+                      color: Colors.red,
+                    ),
+                  ),
+                ),
                 ElevatedButton.icon(
                   onPressed: () {
                     setState(() {
@@ -64,18 +72,19 @@ class _HomePageState extends State<HomePage> {
                     });
                   },
                   icon: const Icon(Icons.error),
-                  label: const Text('Try again'),
+                  label: const Text('Tentar novamente'),
                 )
               ]);
             } else {
               gui.add(Center(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     LoadingAnimationWidget.staggeredDotsWave(
                       color: Colors.blueAccent,
                       size: 70,
                     ),
-                    const Text('Loading companies. Please wait...'),
+                    const Text('Carregando empresas. Por favor, aguarde...'),
                   ],
                 ),
               ));
@@ -122,9 +131,11 @@ class _HomePageState extends State<HomePage> {
       TreeNode? assetTree;
 
       await dialogsService.awaitProcessToExecute(() async {
-        companyAssetsMap = await apiService.getCompanyAssets(company.id);
+        companyAssetsMap =
+            await apiService.getCompanyAssets(company.id, context);
 
-        companyLocationsMap = await apiService.getCompanyLocations(company.id);
+        companyLocationsMap =
+            await apiService.getCompanyLocations(company.id, context);
 
         TreeBuilder assetsTreeBuilder =
             TreeBuilder(companyAssetsMap, companyLocationsMap);
@@ -132,7 +143,7 @@ class _HomePageState extends State<HomePage> {
         assetTree = assetsTreeBuilder.buildTree();
 
         leafNodes = assetsTreeBuilder.leafNodes;
-      }, 'Loading Company Assets');
+      }, 'Carregando Assets da Empresa');
 
       print('Finished loading assets.');
 
@@ -152,7 +163,7 @@ class _HomePageState extends State<HomePage> {
               context: context,
               type: AlertType.error,
               desc:
-                  'Error trying to load the selected company. Please, try again later.')
+                  'Erro tentando carregar os assets da empresa selecionada. Por favor, tente novamente.')
           .show();
     }
   }

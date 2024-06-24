@@ -9,13 +9,19 @@ class DialogsService {
 
   Future<T> awaitProcessToExecute<T>(
       Future<T> Function() processToWaitFor, String loadingPopupTitle) async {
-    showLoadingAnimation(loadingPopupTitle);
+    try {
+      showLoadingAnimation(loadingPopupTitle);
 
-    var result = await processToWaitFor();
+      var result = await processToWaitFor();
 
-    closePopup();
+      closePopup();
 
-    return result;
+      return result;
+    } catch (e) {
+      closePopup();
+
+      throw Exception('Error trying to await process to execute. $e');
+    }
   }
 
   void showLoadingAnimation(String title) {
@@ -34,7 +40,7 @@ class DialogsService {
               color: Colors.blueGrey,
               size: 70,
             ),
-            const Text('Please wait.'),
+            const Text('Por favor aguarde.'),
           ],
         ),
       ),
@@ -44,5 +50,26 @@ class DialogsService {
 
   void closePopup() {
     Navigator.pop(context);
+  }
+
+  Future<void> showNoConnectionAvailablePopup() async {
+    await Alert(
+        context: context,
+        type: AlertType.none,
+        title: 'Dispositivo Offline',
+        desc:
+            'Uma conexão ativa com a internet é necessária para realizar essa operação. Por favor, verifique o status de conexão de seu dispositivo e tente novamente.',
+        buttons: [
+          DialogButton(
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.red, fontSize: 14),
+              ),
+              onPressed: () => Navigator.pop(context))
+        ],
+        style: const AlertStyle(
+          isCloseButton: false,
+          isOverlayTapDismiss: true,
+        )).show();
   }
 }

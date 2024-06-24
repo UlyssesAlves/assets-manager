@@ -2,11 +2,27 @@ import 'package:assets_manager/constants/endpoints.dart';
 import 'package:assets_manager/model/data_model/asset.dart';
 import 'package:assets_manager/model/data_model/company.dart';
 import 'package:assets_manager/model/data_model/location.dart';
+import 'package:assets_manager/services/dialogs_service.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'package:internet_connection_checker/internet_connection_checker.dart';
+
 class ApiService {
-  Future<dynamic> getJsonFromEndpoint(String endpoint) async {
+  Future<dynamic> getJsonFromEndpoint(
+      String endpoint, BuildContext context) async {
+    bool internetConnectionIsAvailable =
+        await InternetConnectionChecker().hasConnection;
+
+    if (!internetConnectionIsAvailable) {
+      DialogsService dialogsService = DialogsService(context);
+
+      await dialogsService.showNoConnectionAvailablePopup();
+
+      throw Exception('No internet connection available.');
+    }
+
     var response = await http.get(Uri.parse(endpoint));
 
     if (response.statusCode == 200) {
@@ -21,9 +37,9 @@ class ApiService {
     }
   }
 
-  Future<List<Company>> getCompanies() async {
+  Future<List<Company>> getCompanies(BuildContext context) async {
     dynamic companiesListJson =
-        await getJsonFromEndpoint(kCompaniesEndpointUrl);
+        await getJsonFromEndpoint(kCompaniesEndpointUrl, context);
 
     var companies = <Company>[];
 
@@ -39,12 +55,13 @@ class ApiService {
     return companies;
   }
 
-  Future<Map<String, Asset>> getCompanyAssets(String companyId) async {
+  Future<Map<String, Asset>> getCompanyAssets(
+      String companyId, BuildContext context) async {
     String parameterizedEndpointUrl =
         kCompanyAssetsEndpointUrl.replaceFirst(':companyId', companyId);
 
     dynamic companyAssetsJson =
-        await getJsonFromEndpoint(parameterizedEndpointUrl);
+        await getJsonFromEndpoint(parameterizedEndpointUrl, context);
 
     Map<String, Asset> companyAssets = {};
 
@@ -66,12 +83,13 @@ class ApiService {
     return companyAssets;
   }
 
-  Future<Map<String, Location>> getCompanyLocations(String companyId) async {
+  Future<Map<String, Location>> getCompanyLocations(
+      String companyId, BuildContext context) async {
     String parameterizedEndpointUrl =
         kCompanyLocationsEndpointUrl.replaceFirst(':companyId', companyId);
 
     dynamic companyLocationsJson =
-        await getJsonFromEndpoint(parameterizedEndpointUrl);
+        await getJsonFromEndpoint(parameterizedEndpointUrl, context);
 
     Map<String, Location> companyLocations = {};
 

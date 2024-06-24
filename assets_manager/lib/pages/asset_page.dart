@@ -79,7 +79,7 @@ class _AssetPageState extends State<AssetPage> {
         scrollController.position.maxScrollExtent) {
       if (filtersAreActive() && totalLoadedItems < totalItems) {
         showToastMessage(
-            "Please remove the filters to load more items into the list.",
+            "Por favor remova os filtros para carregar mais itens na lista.",
             Colors.brown);
 
         return;
@@ -111,11 +111,11 @@ class _AssetPageState extends State<AssetPage> {
     if (totalItems - totalLoadedItems > pageSize) {
       totalItemsToAdd = pageSize;
 
-      toastMessage = "Scroll upwards to load more items.";
+      toastMessage = "Role para baixo para carregar mais itens.";
       toastBackgroundColor = Colors.black;
     } else {
       totalItemsToAdd = totalItems - totalLoadedItems;
-      toastMessage = 'Finished loading all items.';
+      toastMessage = 'Carregamento dos assets concluído.';
       toastBackgroundColor = Colors.green;
     }
 
