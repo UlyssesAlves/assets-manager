@@ -386,8 +386,7 @@ class _AssetPageState extends State<AssetPage> {
     if (filtersAreActive()) {
       resetCacheAutomaticallyExpandedNodesAfterLatestFilterApplication();
 
-      var leafNodesFilterResults =
-          widget.leafNodes.where((n) => applyFilters(n)).toList();
+      List<TreeNode> leafNodesFilterResults = getLeafNodesFilterResults();
 
       for (var leafNode in leafNodesFilterResults) {
         TreeNode currentNode = leafNode;
@@ -416,6 +415,25 @@ class _AssetPageState extends State<AssetPage> {
         TreeBuilder(searchTreeAssets, searchTreeLocations);
 
     searchTree = searchTreeBuilder.buildTree();
+  }
+
+  List<TreeNode> getLeafNodesFilterResults() {
+    List<TreeNode> leafNodesFilterResults = [];
+
+    for (var leaf in widget.leafNodes) {
+      TreeNode? no = leaf;
+
+      while (!no!.isRootNode) {
+        if (applyFilters(no)) {
+          leafNodesFilterResults.add(no);
+
+          break;
+        } else {
+          no = no.parentNode;
+        }
+      }
+    }
+    return leafNodesFilterResults;
   }
 
   void resetCacheAutomaticallyExpandedNodesAfterLatestFilterApplication() {
