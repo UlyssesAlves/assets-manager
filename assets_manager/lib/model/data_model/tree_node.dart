@@ -25,6 +25,10 @@ class TreeNode {
     _collapsed = value;
   }
 
+  void expand() {
+    setCollapsed = false;
+  }
+
   /// Expands this node if it's collapsed and collaps it if it's expanded.
   void toggleCollapsedState() {
     _collapsed = !_collapsed;

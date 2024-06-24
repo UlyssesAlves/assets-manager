@@ -8,6 +8,7 @@ import 'package:assets_manager/services/tree_builder.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 class AssetPage extends StatefulWidget {
   AssetPage(this.assetsTree, this.companyName, this.companyAssetsMap,
@@ -34,6 +35,7 @@ class _AssetPageState extends State<AssetPage> {
   final scrollController = ScrollController();
   TreeNode paginatedAssetsTree = TreeNode('0', 'PAGINATED-TREE');
   TreeNode searchTree = TreeNode('1', 'SEARCH-TREE');
+  Map<String, bool> automaticallyExpandedNodesAfterLatestFilterApplication = {};
 
   /// How many items are loaded to increase the tree each time the user hits the bottom of the scroller.
   final pageSize = 50;
@@ -162,7 +164,7 @@ class _AssetPageState extends State<AssetPage> {
                       decoration: const InputDecoration(
                         filled: true,
                         fillColor: Color.fromARGB(255, 234, 239, 243),
-                        hintText: 'Buscar Ativo ou Local (min 4 caracteres))',
+                        hintText: 'Buscar Ativo ou Local',
                         prefixIcon: Icon(
                           FontAwesomeIcons.magnifyingGlass,
                           color: kAssetsSearchInactiveFilterForegroundColor,
@@ -294,13 +296,19 @@ class _AssetPageState extends State<AssetPage> {
                     ? searchTree.children.length
                     : totalLoadedItems,
                 itemBuilder: ((context, index) {
-                  TreeNode treeNodeToBuild = filtersAreActive()
-                      ? searchTree.children[index]
-                      : paginatedAssetsTree.children[index];
+                  TreeNode treeNodeToBuild;
+
+                  if (filtersAreActive()) {
+                    treeNodeToBuild = searchTree.children[index];
+                    treeNodeToBuild.expand();
+                  } else {
+                    treeNodeToBuild = paginatedAssetsTree.children[index];
+                  }
 
                   return AssetTreeNodeView(
                     treeNodeToBuild,
                     nodeItemTap,
+                    nodeVisibilityChanged,
                   );
                 }),
               ),
@@ -312,9 +320,7 @@ class _AssetPageState extends State<AssetPage> {
   }
 
   bool shouldEnableApplyFiltersButton() {
-    return (textFilterCurrentValue != null &&
-            textFilterCurrentValue != '' &&
-            textFilterCurrentValue!.length >= 4) ||
+    return (textFilterCurrentValue != null && textFilterCurrentValue != '') ||
         energySensorFilterButtonState ||
         criticalSensorStatusFilterButtonState;
   }
@@ -338,6 +344,35 @@ class _AssetPageState extends State<AssetPage> {
     }
   }
 
+  void nodeVisibilityChanged(VisibilityInfo visibilityInfo, TreeNode node) {
+    bool nodeIsFullyVisible = visibilityInfo.visibleFraction == 1;
+
+    if (nodeIsFullyVisible &&
+        node.hasChildren &&
+        node.isCollapsed &&
+        filtersAreActive()) {
+      var nodeHasAlreadyBeenAutomaticallyExpandedAfterLatestFilterApplication =
+          automaticallyExpandedNodesAfterLatestFilterApplication[
+              node.toString()];
+
+      if (nodeHasAlreadyBeenAutomaticallyExpandedAfterLatestFilterApplication ==
+          true) {
+        print(
+            'Node $node will not be automatically expanded because it has already happened after the latest filter application.');
+        return;
+      }
+
+      print('Automatically expanding node $node.');
+
+      automaticallyExpandedNodesAfterLatestFilterApplication[node.toString()] =
+          true;
+
+      setState(() {
+        node.expand();
+      });
+    }
+  }
+
   bool filtersAreActive() {
     return appliedTextFilter.isNotEmpty ||
         appliedFilterCriticalSensorStatus ||
@@ -349,29 +384,23 @@ class _AssetPageState extends State<AssetPage> {
     Map<String, Location> searchTreeLocations = {};
 
     if (filtersAreActive()) {
+      resetCacheAutomaticallyExpandedNodesAfterLatestFilterApplication();
+
       var leafNodesFilterResults =
           widget.leafNodes.where((n) => applyFilters(n)).toList();
 
       for (var leafNode in leafNodesFilterResults) {
         TreeNode currentNode = leafNode;
 
-        currentNode.setCollapsed = false;
-
         while (!currentNode.isRootNode) {
           if (currentNode.isAsset &&
               !searchTreeAssets.containsKey(currentNode.id)) {
             var currentNodeCopy = currentNode.copy() as Asset;
 
-            currentNodeCopy.setCollapsed = false;
-            getMapNodeReference(currentNode)?.setCollapsed = false;
-
             searchTreeAssets[currentNode.id] = currentNodeCopy;
           } else if (currentNode.isLocation &&
               !searchTreeLocations.containsKey(currentNode.id)) {
             var currentNodeCopy = currentNode.copy() as Location;
-
-            currentNodeCopy.setCollapsed = false;
-            getMapNodeReference(currentNode)?.setCollapsed = false;
 
             searchTreeLocations[currentNode.id] = currentNodeCopy;
           }
@@ -387,6 +416,13 @@ class _AssetPageState extends State<AssetPage> {
         TreeBuilder(searchTreeAssets, searchTreeLocations);
 
     searchTree = searchTreeBuilder.buildTree();
+  }
+
+  void resetCacheAutomaticallyExpandedNodesAfterLatestFilterApplication() {
+    for (var key
+        in automaticallyExpandedNodesAfterLatestFilterApplication.keys) {
+      automaticallyExpandedNodesAfterLatestFilterApplication[key] = false;
+    }
   }
 
   void collapseAllNodes() {
