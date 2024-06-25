@@ -62,6 +62,8 @@ class _AssetPageState extends State<AssetPage> {
   void initState() {
     super.initState();
 
+    performanceCounter.reset();
+
     addMoreItemsToPaginatedTree();
 
     scrollController.addListener(loadMoreItems);
@@ -434,12 +436,12 @@ class _AssetPageState extends State<AssetPage> {
       collapseAllNodes();
     }
 
-    searchTree = getNewSearchTree();
+    searchTree = createNewSearchTree();
 
     performanceCounter.trackActionFinishTime(kActionRefreshSearchTreeCall);
   }
 
-  TreeNode getNewSearchTree() {
+  TreeNode createNewSearchTree() {
     Map<String, Asset> searchTreeAssets = {};
     Map<String, Location> searchTreeLocations = {};
 
@@ -471,6 +473,10 @@ class _AssetPageState extends State<AssetPage> {
             var currentNodeCopy = currentNode.copy() as Location;
 
             searchTreeLocations[currentNode.id] = currentNodeCopy;
+          }
+
+          if (searchTreeAssets.containsKey(currentNode.parentNode!.id)) {
+            break;
           }
 
           currentNode = currentNode.parentNode!;
