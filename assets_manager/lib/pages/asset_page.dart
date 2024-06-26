@@ -461,14 +461,25 @@ class _AssetPageState extends State<AssetPage> {
     String companyAssetsJson = jsonEncode(widget.companyAssetsMap);
     String companyLocationsJson = jsonEncode(widget.companyLocationsMap);
 
-    String leafNodesFilterResultsJson = await compute(isolateProcessor, [
+    ReceivePort parametersReceivePort = ReceivePort();
+
+    await Isolate.spawn(isolateProcessor, parametersReceivePort.sendPort);
+
+    SendPort parametersSendPort = await parametersReceivePort.first;
+
+    ReceivePort resultsReceivePort = ReceivePort();
+
+    parametersSendPort.send([
       leafNodesJson,
       companyAssetsJson,
       companyLocationsJson,
       appliedTextFilter,
       appliedFilterEnergySensor,
-      appliedFilterCriticalSensorStatus
+      appliedFilterCriticalSensorStatus,
+      resultsReceivePort.sendPort
     ]);
+
+    final leafNodesFilterResultsJson = await resultsReceivePort.first;
 
     final idsLeafNodesFilterResults = jsonDecode(leafNodesFilterResultsJson);
 
@@ -617,7 +628,17 @@ bool applyFilters(dynamic item, String appliedTextFilter,
       matchesCriticalSensorStatusFilter;
 }
 
-String isolateProcessor(List<dynamic> params) {
-  return getLeafNodesFilterResults(
+void isolateProcessor(SendPort mainProcessSendPort) async {
+  ReceivePort isolateProcessorReceivePort = ReceivePort();
+
+  mainProcessSendPort.send(isolateProcessorReceivePort.sendPort);
+
+  var params = await isolateProcessorReceivePort.first;
+
+  var result = getLeafNodesFilterResults(
       params[0], params[1], params[2], params[3], params[4], params[5]);
+
+  final SendPort resultsSendPort = params[6];
+
+  resultsSendPort.send(result);
 }
