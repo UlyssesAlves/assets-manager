@@ -1,7 +1,3 @@
-## Description
-
-This project is my solution for Tractian Mobile Software Engine challenge.
-
 ## Video Demonstration
 
 Here is my demonstration of the app in video format.
