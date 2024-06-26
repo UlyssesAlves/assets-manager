@@ -1,21 +1,19 @@
-import 'package:assets_manager/model/data_model/asset.dart';
 import 'package:assets_manager/model/data_model/tree_node.dart';
-import 'package:assets_manager/model/data_model/location.dart';
+import 'package:assets_manager/model/search_tree_blue_print.dart';
 
 class TreeBuilder {
-  final Map<String, Asset> _assets;
-  final Map<String, Location> _locations;
-  final List<TreeNode> _leafNodes = [];
-  List<TreeNode> get leafNodes => _leafNodes;
+  final SearchTreeBluePrint _bluePrint;
+  final Map<String, TreeNode> _leafNodes = {};
+  Map<String, TreeNode> get leafNodes => _leafNodes;
 
-  TreeBuilder(this._assets, this._locations);
+  TreeBuilder(this._bluePrint);
 
   final TreeNode _rootNode = TreeNode(kRootNodeId, kRootNodeId, parentId: null);
 
   TreeNode buildTree() {
-    for (var location in _locations.values) {
+    for (var location in _bluePrint.searchTreeLocations!.values) {
       if (location.isSubLocation) {
-        var parentLocation = _locations[location.parentId];
+        var parentLocation = _bluePrint.searchTreeLocations![location.parentId];
 
         if (parentLocation != null) {
           setParentNode(parentLocation, location);
@@ -30,11 +28,11 @@ class TreeBuilder {
       }
     }
 
-    for (var asset in _assets.values) {
+    for (var asset in _bluePrint.searchTreeAssets!.values) {
       if (!asset.isLinkedToALocation && !asset.hasParentId) {
         setRootAsParentNode(asset);
       } else if (asset.hasParentId) {
-        var parentAsset = _assets[asset.parentId];
+        var parentAsset = _bluePrint.searchTreeAssets![asset.parentId];
 
         if (parentAsset != null) {
           setParentNode(parentAsset, asset);
@@ -45,7 +43,7 @@ class TreeBuilder {
           setRootAsParentNode(asset);
         }
       } else {
-        var parentLocation = _locations[asset.locationId];
+        var parentLocation = _bluePrint.searchTreeLocations![asset.locationId];
 
         if (parentLocation != null) {
           setParentNode(parentLocation, asset);
@@ -74,7 +72,14 @@ class TreeBuilder {
   }
 
   void _setLeafNodes() {
-    _leafNodes.addAll(_locations.values.where((l) => !l.hasChildren));
-    _leafNodes.addAll(_assets.values.where((a) => !a.hasChildren));
+    for (var location in _bluePrint.searchTreeLocations!.values
+        .where((l) => !l.hasChildren)) {
+      _leafNodes[location.id] = location;
+    }
+
+    for (var asset
+        in _bluePrint.searchTreeAssets!.values.where((a) => !a.hasChildren)) {
+      _leafNodes[asset.id] = asset;
+    }
   }
 }

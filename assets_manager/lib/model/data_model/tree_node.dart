@@ -117,4 +117,17 @@ class TreeNode {
       return (this as Location).toString();
     }
   }
+
+  TreeNode.fromJson(Map<String, dynamic> json)
+      : id = json['id'],
+        name = json['name'],
+        parentId = json['parentId'];
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'parentId': parentId,
+    };
+  }
 }

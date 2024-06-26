@@ -2,11 +2,11 @@ import 'package:assets_manager/model/data_model/tree_node.dart';
 import 'package:assets_manager/model/data_model/location.dart';
 
 class Asset extends TreeNode {
-  final String? sensorId;
-  final String? sensorType;
-  final String? status;
-  final String? gatewayId;
-  final String? locationId;
+  String? sensorId;
+  String? sensorType;
+  String? status;
+  String? gatewayId;
+  String? locationId;
 
   List<Asset>? get subAssets => children.whereType<Asset>().toList();
 
@@ -50,5 +50,27 @@ class Asset extends TreeNode {
   @override
   String toString() {
     return '[ASSET] $name ($id)';
+  }
+
+  Asset.fromJson(Map<String, dynamic> json) : super.fromJson(json) {
+    gatewayId = json['gatewayId'];
+    locationId = json['locationId'];
+    sensorId = json['sensorId'];
+    sensorType = json['sensorType'];
+    status = json['status'];
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'parentId': parentId,
+      'gatewayId': gatewayId,
+      'locationId': locationId,
+      'sensorId': sensorId,
+      'sensorType': sensorType,
+      'status': status
+    };
   }
 }

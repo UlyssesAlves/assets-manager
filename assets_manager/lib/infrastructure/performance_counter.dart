@@ -1,12 +1,16 @@
 import 'package:assets_manager/infrastructure/performance_counter_item.dart';
 
 const kActionRefreshSearchTreeCall = 'refreshSearchTreeCall';
+const kIsolateSearchTreeRebuildingProcess =
+    'IsolateSearchTreeRebuildingProcess';
 const kGetLeafNodesFilterResults = 'getLeafNodesFilterResults';
 const kLoopleafNodesFilterResults = 'LoopleafNodesFilterResults';
 const kCollapseAllNodes = 'collapseAllNodes';
 const kBuildSearchTree = 'buildSearchTree';
 const kActionBuildAssetsPage = 'BuildAssetsPage';
 const kActionBuildTreeNode = 'BuildTreeNode';
+const kCreateSearchTreeBluePrint = 'CreateSearchTreeBluePrint';
+const kCreateNewSearchTree = 'CreateNewSearchTree';
 
 class PerformanceCounter {
   static final PerformanceCounter _instance = PerformanceCounter._internal();
@@ -58,20 +62,34 @@ class PerformanceCounter {
   void printPerformanceReport() {
     print('### PERFORMANCE REPORT - HIGHEST TO LOWEST PERFORMANCE ACTIONS ###');
 
-    List<PerformanceCounterItem> listOfActions =
+    List<PerformanceCounterItem?> listOfActions =
         getlistOfActionsOrderedByPerformance();
 
-    for (var action in listOfActions) {
-      int delayDifferenceComparedToBestPerformingAction =
-          action.ellapsedTime!.inMicroseconds -
-              listOfActions.first.ellapsedTime!.inMicroseconds;
+    PerformanceCounterItem? firstNonPendingAction;
 
-      final performanceDecayComparedToBestPerformingAction =
-          delayDifferenceComparedToBestPerformingAction /
-              listOfActions.first.ellapsedTime!.inMicroseconds;
-
+    try {
+      firstNonPendingAction =
+          listOfActions.firstWhere((a) => a?.ellapsedTime != null);
+    } catch (e) {
       print(
-          '${listOfActions.indexOf(action) + 1}º EllapsedTime = ${action.ellapsedTime}, PerformanceDecrease = ${performanceDecayComparedToBestPerformingAction.toStringAsFixed(0)}%, Action = ${action.key}');
+          'Ignoring error of no pending action available to compare with other actions performances.');
+    }
+
+    for (var action in listOfActions) {
+      if (firstNonPendingAction != null && action?.ellapsedTime != null) {
+        int delayDifferenceComparedToBestPerformingAction =
+            action!.ellapsedTime!.inMicroseconds -
+                firstNonPendingAction.ellapsedTime!.inMicroseconds;
+
+        final performanceDecayComparedToBestPerformingAction =
+            delayDifferenceComparedToBestPerformingAction /
+                firstNonPendingAction.ellapsedTime!.inMicroseconds;
+
+        print(
+            '${listOfActions.indexOf(action) + 1}º EllapsedTime = ${action.ellapsedTime}, PerformanceDecrease = ${performanceDecayComparedToBestPerformingAction.toStringAsFixed(0)}%, Action = ${action.key}');
+      } else {
+        print('?º PENDING/STILL RUNNING Action = ${action?.key}');
+      }
     }
   }
 

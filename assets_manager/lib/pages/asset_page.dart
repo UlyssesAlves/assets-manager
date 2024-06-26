@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:isolate';
+
 import 'package:assets_manager/components/asset_tree/asset_tree_node_view.dart';
 import 'package:assets_manager/components/simple_button_with_icon.dart';
 import 'package:assets_manager/constants/styles.dart';
@@ -6,7 +9,9 @@ import 'package:assets_manager/model/data_model/asset.dart';
 import 'package:assets_manager/model/data_model/filter_cache_item.dart';
 import 'package:assets_manager/model/data_model/location.dart';
 import 'package:assets_manager/model/data_model/tree_node.dart';
+import 'package:assets_manager/model/search_tree_blue_print.dart';
 import 'package:assets_manager/services/tree_builder.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -17,7 +22,7 @@ class AssetPage extends StatefulWidget {
       this.companyLocationsMap, this.leafNodes);
 
   final TreeNode assetsTree;
-  final List<TreeNode> leafNodes;
+  final Map<String, TreeNode> leafNodes;
   final Map<String, Asset> companyAssetsMap;
   final Map<String, Location> companyLocationsMap;
   final String companyName;
@@ -252,11 +257,9 @@ class _AssetPageState extends State<AssetPage> {
                               clearSearchTree();
                             });
 
-                            await Future.delayed(
-                                const Duration(milliseconds: 750));
+                            await refreshSearchTree();
 
                             setState(() {
-                              refreshSearchTree();
                               applyingFilters = false;
                             });
                           }
@@ -287,7 +290,7 @@ class _AssetPageState extends State<AssetPage> {
                         appliedFilterCriticalSensorStatus = false;
                         criticalSensorStatusFilterButtonState = false;
 
-                        refreshSearchTree();
+                        clearSearchTree();
                       });
                     },
                     backgroundColor: Colors.red,
@@ -379,11 +382,6 @@ class _AssetPageState extends State<AssetPage> {
         : widget.companyAssetsMap[node.id];
   }
 
-  bool applyFilters(TreeNode item) =>
-      item.matchesTextFilter(appliedTextFilter) &&
-      item.matchesEnergySensorFilter(appliedFilterEnergySensor) &&
-      item.matchesCriticalSensorStatusFilter(appliedFilterCriticalSensorStatus);
-
   void nodeItemTap(TreeNode tappedItem) {
     if (tappedItem.hasChildren) {
       setState(() {
@@ -426,98 +424,113 @@ class _AssetPageState extends State<AssetPage> {
   }
 
   void clearSearchTree() {
-    searchTree = buildSearchTree({}, {});
+    searchTree = buildSearchTree(SearchTreeBluePrint.empty());
   }
 
-  void refreshSearchTree() {
+  Future<void> refreshSearchTree() async {
     performanceCounter.trackActionStartTime(kActionRefreshSearchTreeCall);
 
     if (!filtersAreActive()) {
       collapseAllNodes();
     }
 
-    searchTree = createNewSearchTree();
+    if (searchTreeCache.containsKey(currentlyAppliedFilterCacheKey.key)) {
+      print('Using search tree from cache.');
+
+      searchTree = searchTreeCache[currentlyAppliedFilterCacheKey.key]!;
+    } else {
+      performanceCounter.trackActionStartTime(kCreateNewSearchTree);
+
+      searchTree = await createNewSearchTree();
+
+      performanceCounter.trackActionFinishTime(kCreateNewSearchTree);
+    }
 
     performanceCounter.trackActionFinishTime(kActionRefreshSearchTreeCall);
   }
 
-  TreeNode createNewSearchTree() {
-    Map<String, Asset> searchTreeAssets = {};
-    Map<String, Location> searchTreeLocations = {};
+  FilterCacheKey get currentlyAppliedFilterCacheKey => FilterCacheKey(
+      appliedTextFilter,
+      appliedFilterEnergySensor,
+      appliedFilterCriticalSensorStatus);
 
-    final FilterCacheKey filterCacheKey = FilterCacheKey(appliedTextFilter,
-        appliedFilterEnergySensor, appliedFilterCriticalSensorStatus);
+  Future<TreeNode> createNewSearchTree() async {
+    resetCacheAutomaticallyExpandedNodesAfterLatestFilterApplication();
 
-    if (filtersAreActive()) {
-      if (searchTreeCache.containsKey(filterCacheKey.key)) {
-        print('Using search tree from cache.');
+    String leafNodesJson = jsonEncode(widget.leafNodes);
 
-        return searchTreeCache[filterCacheKey.key]!;
-      }
+    String leafNodesFilterResultsJson = await compute(isolateProcessor, [
+      leafNodesJson,
+      appliedTextFilter,
+      appliedFilterEnergySensor,
+      appliedFilterCriticalSensorStatus
+    ]);
 
-      resetCacheAutomaticallyExpandedNodesAfterLatestFilterApplication();
+    final idsLeafNodesFilterResults = jsonDecode(leafNodesFilterResultsJson);
 
-      List<TreeNode> leafNodesFilterResults = getLeafNodesFilterResults();
+    final leafNodesFilterResults = widget.leafNodes.entries
+        .where((entry) => idsLeafNodesFilterResults.contains(entry.key))
+        .map((e) => e.value)
+        .toList();
 
-      for (var leafNode in leafNodesFilterResults) {
-        TreeNode currentNode = leafNode;
+    performanceCounter.trackActionStartTime(kCreateSearchTreeBluePrint);
 
-        while (!currentNode.isRootNode) {
-          if (currentNode.isAsset &&
-              !searchTreeAssets.containsKey(currentNode.id)) {
-            var currentNodeCopy = currentNode.copy() as Asset;
+    SearchTreeBluePrint bluePrint =
+        createSearchTreeBluePrint(leafNodesFilterResults);
 
-            searchTreeAssets[currentNode.id] = currentNodeCopy;
-          } else if (currentNode.isLocation &&
-              !searchTreeLocations.containsKey(currentNode.id)) {
-            var currentNodeCopy = currentNode.copy() as Location;
+    performanceCounter.trackActionFinishTime(kCreateSearchTreeBluePrint);
 
-            searchTreeLocations[currentNode.id] = currentNodeCopy;
-          }
+    performanceCounter.trackActionStartTime(kBuildSearchTree);
 
-          if (searchTreeAssets.containsKey(currentNode.parentNode!.id)) {
-            break;
-          }
+    var newSearchTree = buildSearchTree(bluePrint);
 
-          currentNode = currentNode.parentNode!;
-        }
-      }
-    }
+    searchTreeCache[currentlyAppliedFilterCacheKey.key] = newSearchTree;
 
-    var newSearchTree = buildSearchTree(searchTreeAssets, searchTreeLocations);
-
-    if (filtersAreActive()) {
-      searchTreeCache[filterCacheKey.key] = newSearchTree;
-    }
+    performanceCounter.trackActionFinishTime(kBuildSearchTree);
 
     return newSearchTree;
   }
 
-  TreeNode buildSearchTree(Map<String, Asset> searchTreeAssets,
-      Map<String, Location> searchTreeLocations) {
-    TreeBuilder searchTreeBuilder =
-        TreeBuilder(searchTreeAssets, searchTreeLocations);
+  SearchTreeBluePrint createSearchTreeBluePrint(
+      List<TreeNode> leafNodesFilterResults) {
+    SearchTreeBluePrint searchTreeBluePrint = SearchTreeBluePrint.empty();
 
-    return searchTreeBuilder.buildTree();
-  }
+    for (var leafNode in leafNodesFilterResults) {
+      TreeNode currentNode = leafNode;
 
-  List<TreeNode> getLeafNodesFilterResults() {
-    List<TreeNode> leafNodesFilterResults = [];
+      while (!currentNode.isRootNode) {
+        if (currentNode.isAsset &&
+            !searchTreeBluePrint.searchTreeAssets!
+                .containsKey(currentNode.id)) {
+          var currentNodeCopy = currentNode.copy() as Asset;
 
-    for (var leaf in widget.leafNodes) {
-      TreeNode? no = leaf;
+          searchTreeBluePrint.searchTreeAssets![currentNode.id] =
+              currentNodeCopy;
+        } else if (currentNode.isLocation &&
+            !searchTreeBluePrint.searchTreeLocations!
+                .containsKey(currentNode.id)) {
+          var currentNodeCopy = currentNode.copy() as Location;
 
-      while (!no!.isRootNode) {
-        if (applyFilters(no)) {
-          leafNodesFilterResults.add(no);
-
-          break;
-        } else {
-          no = no.parentNode;
+          searchTreeBluePrint.searchTreeLocations![currentNode.id] =
+              currentNodeCopy;
         }
+
+        if (searchTreeBluePrint.searchTreeAssets!
+            .containsKey(currentNode.parentNode!.id)) {
+          break;
+        }
+
+        currentNode = currentNode.parentNode!;
       }
     }
-    return leafNodesFilterResults;
+
+    return searchTreeBluePrint;
+  }
+
+  TreeNode buildSearchTree(SearchTreeBluePrint bluePrint) {
+    TreeBuilder searchTreeBuilder = TreeBuilder(bluePrint);
+
+    return searchTreeBuilder.buildTree();
   }
 
   void resetCacheAutomaticallyExpandedNodesAfterLatestFilterApplication() {
@@ -536,4 +549,51 @@ class _AssetPageState extends State<AssetPage> {
       location.setCollapsed = true;
     }
   }
+}
+
+String getLeafNodesFilterResults(
+  String leafNodesJson,
+  String appliedTextFilter,
+  bool appliedFilterEnergySensor,
+  bool appliedFilterCriticalSensorStatus,
+) {
+  List<String> idsLeafNodesFilterResults = [];
+  Map<String, dynamic> leafNodes =
+      jsonDecode(leafNodesJson) as Map<String, dynamic>;
+
+  for (dynamic node in leafNodes.values) {
+    if (applyFilters(node, appliedTextFilter, appliedFilterEnergySensor,
+        appliedFilterCriticalSensorStatus)) {
+      idsLeafNodesFilterResults.add(node['id']);
+    } else {
+      if (!idsLeafNodesFilterResults.contains(node['parentId']) &&
+          !idsLeafNodesFilterResults.contains(node['locationId'])) {
+        dynamic parentNode;
+        while (parentNode = leafNodes[node['parentId']] ??
+            leafNodes[node['locationId']] != null) {
+          if (applyFilters(parentNode, appliedTextFilter,
+              appliedFilterEnergySensor, appliedFilterCriticalSensorStatus)) {
+            idsLeafNodesFilterResults.add(parentNode['id']);
+
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  return jsonEncode(idsLeafNodesFilterResults);
+}
+
+bool applyFilters(dynamic item, String appliedTextFilter,
+    bool appliedFilterEnergySensor, bool appliedFilterCriticalSensorStatus) {
+  TreeNode node = TreeNode.fromJson(item);
+
+  return node.matchesTextFilter(appliedTextFilter) ||
+      node.matchesEnergySensorFilter(appliedFilterEnergySensor) ||
+      node.matchesCriticalSensorStatusFilter(appliedFilterCriticalSensorStatus);
+}
+
+String isolateProcessor(List<dynamic> params) {
+  return getLeafNodesFilterResults(params[0], params[1], params[2], params[3]);
 }

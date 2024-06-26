@@ -9,6 +9,18 @@ class PerformanceCounterItem implements Comparable<PerformanceCounterItem> {
 
   @override
   int compareTo(PerformanceCounterItem other) {
+    if (ellapsedTime == null && other.ellapsedTime == null) {
+      return 1;
+    }
+
+    if (ellapsedTime != null && other.ellapsedTime == null) {
+      return -1;
+    }
+
+    if (ellapsedTime == null && other.ellapsedTime != null) {
+      return 1;
+    }
+
     return ellapsedTime!.compareTo(other.ellapsedTime as Duration);
   }
 }

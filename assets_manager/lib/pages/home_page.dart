@@ -4,6 +4,7 @@ import 'package:assets_manager/model/data_model/asset.dart';
 import 'package:assets_manager/model/data_model/company.dart';
 import 'package:assets_manager/model/data_model/location.dart';
 import 'package:assets_manager/model/data_model/tree_node.dart';
+import 'package:assets_manager/model/search_tree_blue_print.dart';
 import 'package:assets_manager/pages/asset_page.dart';
 import 'package:assets_manager/services/api_service.dart';
 import 'package:assets_manager/services/dialogs_service.dart';
@@ -127,7 +128,7 @@ class _HomePageState extends State<HomePage> {
 
       Map<String, Asset> companyAssetsMap = {};
       Map<String, Location> companyLocationsMap = {};
-      List<TreeNode> leafNodes = [];
+      Map<String, TreeNode> leafNodes = {};
       TreeNode? assetTree;
 
       await dialogsService.awaitProcessToExecute(() async {
@@ -137,8 +138,9 @@ class _HomePageState extends State<HomePage> {
         companyLocationsMap =
             await apiService.getCompanyLocations(company.id, context);
 
-        TreeBuilder assetsTreeBuilder =
-            TreeBuilder(companyAssetsMap, companyLocationsMap);
+        TreeBuilder assetsTreeBuilder = TreeBuilder(
+          SearchTreeBluePrint(companyAssetsMap, companyLocationsMap),
+        );
 
         assetTree = assetsTreeBuilder.buildTree();
 
