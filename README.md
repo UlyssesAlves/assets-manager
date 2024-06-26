@@ -1,5 +1,3 @@
-# Mobile Software Engineer
-
 ## Description
 
 This project is my solution for Tractian Mobile Software Engine challenge.
