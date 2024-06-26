@@ -573,27 +573,20 @@ String getLeafNodesFilterResults(
       companyLocationsMap = decodeNodesMap(companyLocationsJson);
 
   for (dynamic nodeMap in leafNodesMap.values) {
-    if (applyFilters(nodeMap, appliedTextFilter, appliedFilterEnergySensor,
-        appliedFilterCriticalSensorStatus)) {
-      leafNodesFilterResultsMap[nodeMap['id']] = nodeMap;
-    } else {
-      while (nodeMapHasParentNode(nodeMap)) {
-        if (nodeMap['locationId'] != null) {
-          nodeMap = companyLocationsMap[nodeMap['locationId']];
-        } else if (nodeMap['parentId'] != null) {
-          nodeMap = companyAssetsMap[nodeMap['parentId']];
-        }
+    while (nodeMap != null) {
+      if (!leafNodesFilterResultsMap.containsKey(nodeMap['id']) &&
+          applyFilters(nodeMap, appliedTextFilter, appliedFilterEnergySensor,
+              appliedFilterCriticalSensorStatus)) {
+        leafNodesFilterResultsMap[nodeMap['id']] = nodeMap;
+      }
 
-        if (leafNodesFilterResultsMap.containsKey(nodeMap['id'])) {
-          break;
-        }
-
-        if (applyFilters(nodeMap, appliedTextFilter, appliedFilterEnergySensor,
-            appliedFilterCriticalSensorStatus)) {
-          leafNodesFilterResultsMap[nodeMap['id']] = nodeMap;
-
-          break;
-        }
+      if (nodeMap['locationId'] != null) {
+        nodeMap = companyLocationsMap[nodeMap['locationId']];
+      } else if (nodeMap['parentId'] != null) {
+        nodeMap = companyAssetsMap[nodeMap['parentId']] ??
+            companyLocationsMap[nodeMap['parentId']];
+      } else {
+        nodeMap = null;
       }
     }
   }
@@ -602,7 +595,7 @@ String getLeafNodesFilterResults(
 }
 
 bool nodeMapHasParentNode(nodeMap) {
-  return nodeMap['locationId'] != null && nodeMap['parentId'] != null;
+  return nodeMap['locationId'] != null || nodeMap['parentId'] != null;
 }
 
 Map<String, dynamic> decodeNodesMap(String leafNodesJson) =>
@@ -611,7 +604,7 @@ Map<String, dynamic> decodeNodesMap(String leafNodesJson) =>
 bool applyFilters(dynamic item, String appliedTextFilter,
     bool appliedFilterEnergySensor, bool appliedFilterCriticalSensorStatus) {
   bool matchesTextFilter = appliedTextFilter.isEmpty ||
-      item['name'].toLowerCase().contains(appliedTextFilter);
+      item['name'].toLowerCase().contains(appliedTextFilter.toLowerCase());
 
   bool matchesEnergySensorFilter =
       !appliedFilterEnergySensor || item['sensorType'] == 'energy';
