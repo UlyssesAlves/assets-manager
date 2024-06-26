@@ -21,4 +21,15 @@ class Location extends TreeNode {
   String toString() {
     return '[LOCATION] $name ($id)';
   }
+
+  Location.fromJson(Map<String, dynamic> json) : super.fromJson(json);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'parentId': parentId,
+    };
+  }
 }

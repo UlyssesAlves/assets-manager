@@ -458,9 +458,13 @@ class _AssetPageState extends State<AssetPage> {
     resetCacheAutomaticallyExpandedNodesAfterLatestFilterApplication();
 
     String leafNodesJson = jsonEncode(widget.leafNodes);
+    String companyAssetsJson = jsonEncode(widget.companyAssetsMap);
+    String companyLocationsJson = jsonEncode(widget.companyLocationsMap);
 
     String leafNodesFilterResultsJson = await compute(isolateProcessor, [
       leafNodesJson,
+      companyAssetsJson,
+      companyLocationsJson,
       appliedTextFilter,
       appliedFilterEnergySensor,
       appliedFilterCriticalSensorStatus
@@ -468,10 +472,13 @@ class _AssetPageState extends State<AssetPage> {
 
     final idsLeafNodesFilterResults = jsonDecode(leafNodesFilterResultsJson);
 
-    final leafNodesFilterResults = widget.leafNodes.entries
-        .where((entry) => idsLeafNodesFilterResults.contains(entry.key))
-        .map((e) => e.value)
-        .toList();
+    List<TreeNode> leafNodesFilterResults = [];
+
+    leafNodesFilterResults.addAll(widget.companyAssetsMap.values
+        .where((asset) => idsLeafNodesFilterResults.contains(asset.id)));
+
+    leafNodesFilterResults.addAll(widget.companyLocationsMap.values
+        .where((location) => idsLeafNodesFilterResults.contains(location.id)));
 
     performanceCounter.trackActionStartTime(kCreateSearchTreeBluePrint);
 
@@ -553,47 +560,71 @@ class _AssetPageState extends State<AssetPage> {
 
 String getLeafNodesFilterResults(
   String leafNodesJson,
+  String companyAssetsJson,
+  String companyLocationsJson,
   String appliedTextFilter,
   bool appliedFilterEnergySensor,
   bool appliedFilterCriticalSensorStatus,
 ) {
-  List<String> idsLeafNodesFilterResults = [];
-  Map<String, dynamic> leafNodes =
-      jsonDecode(leafNodesJson) as Map<String, dynamic>;
+  Map<String, dynamic> leafNodesFilterResultsMap = {};
 
-  for (dynamic node in leafNodes.values) {
-    if (applyFilters(node, appliedTextFilter, appliedFilterEnergySensor,
+  Map<String, dynamic> leafNodesMap = decodeNodesMap(leafNodesJson),
+      companyAssetsMap = decodeNodesMap(companyAssetsJson),
+      companyLocationsMap = decodeNodesMap(companyLocationsJson);
+
+  for (dynamic nodeMap in leafNodesMap.values) {
+    if (applyFilters(nodeMap, appliedTextFilter, appliedFilterEnergySensor,
         appliedFilterCriticalSensorStatus)) {
-      idsLeafNodesFilterResults.add(node['id']);
+      leafNodesFilterResultsMap[nodeMap['id']] = nodeMap;
     } else {
-      if (!idsLeafNodesFilterResults.contains(node['parentId']) &&
-          !idsLeafNodesFilterResults.contains(node['locationId'])) {
-        dynamic parentNode;
-        while (parentNode = leafNodes[node['parentId']] ??
-            leafNodes[node['locationId']] != null) {
-          if (applyFilters(parentNode, appliedTextFilter,
-              appliedFilterEnergySensor, appliedFilterCriticalSensorStatus)) {
-            idsLeafNodesFilterResults.add(parentNode['id']);
+      while (nodeMapHasParentNode(nodeMap)) {
+        if (nodeMap['locationId'] != null) {
+          nodeMap = companyLocationsMap[nodeMap['locationId']];
+        } else if (nodeMap['parentId'] != null) {
+          nodeMap = companyAssetsMap[nodeMap['parentId']];
+        }
 
-            break;
-          }
+        if (leafNodesFilterResultsMap.containsKey(nodeMap['id'])) {
+          break;
+        }
+
+        if (applyFilters(nodeMap, appliedTextFilter, appliedFilterEnergySensor,
+            appliedFilterCriticalSensorStatus)) {
+          leafNodesFilterResultsMap[nodeMap['id']] = nodeMap;
+
+          break;
         }
       }
     }
   }
 
-  return jsonEncode(idsLeafNodesFilterResults);
+  return jsonEncode(leafNodesFilterResultsMap.keys.toList());
 }
+
+bool nodeMapHasParentNode(nodeMap) {
+  return nodeMap['locationId'] != null && nodeMap['parentId'] != null;
+}
+
+Map<String, dynamic> decodeNodesMap(String leafNodesJson) =>
+    jsonDecode(leafNodesJson) as Map<String, dynamic>;
 
 bool applyFilters(dynamic item, String appliedTextFilter,
     bool appliedFilterEnergySensor, bool appliedFilterCriticalSensorStatus) {
-  TreeNode node = TreeNode.fromJson(item);
+  bool matchesTextFilter = appliedTextFilter.isEmpty ||
+      item['name'].toLowerCase().contains(appliedTextFilter);
 
-  return node.matchesTextFilter(appliedTextFilter) ||
-      node.matchesEnergySensorFilter(appliedFilterEnergySensor) ||
-      node.matchesCriticalSensorStatusFilter(appliedFilterCriticalSensorStatus);
+  bool matchesEnergySensorFilter =
+      !appliedFilterEnergySensor || item['sensorType'] == 'energy';
+
+  bool matchesCriticalSensorStatusFilter =
+      !appliedFilterCriticalSensorStatus || item['status'] == 'alert';
+
+  return matchesTextFilter &&
+      matchesEnergySensorFilter &&
+      matchesCriticalSensorStatusFilter;
 }
 
 String isolateProcessor(List<dynamic> params) {
-  return getLeafNodesFilterResults(params[0], params[1], params[2], params[3]);
+  return getLeafNodesFilterResults(
+      params[0], params[1], params[2], params[3], params[4], params[5]);
 }

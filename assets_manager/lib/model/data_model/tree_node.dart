@@ -56,55 +56,6 @@ class TreeNode {
       this is Asset && (this as Asset).status == 'alert';
   bool get hasChildren => children.isNotEmpty;
 
-  bool matchesTextFilter(String textFilter) {
-    if (textFilter.isEmpty) {
-      return true;
-    } else if (name.toLowerCase().contains(textFilter)) {
-      return true;
-    } else {
-      for (var child in children) {
-        if (child.matchesTextFilter(textFilter)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  bool matchesCriticalSensorStatusFilter(bool filterCriticalSensorStatus) {
-    if (!filterCriticalSensorStatus) {
-      return true;
-    } else if (isInAlertStatus == filterCriticalSensorStatus) {
-      return true;
-    } else {
-      for (var child in children) {
-        if (child
-            .matchesCriticalSensorStatusFilter(filterCriticalSensorStatus)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  bool matchesEnergySensorFilter(bool filterEnergySensor) {
-    if (!filterEnergySensor) {
-      return true;
-    } else if (hasEnergySensor == filterEnergySensor) {
-      return true;
-    } else {
-      for (var child in children) {
-        if (child.matchesEnergySensorFilter(filterEnergySensor)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
   TreeNode copy() {
     return TreeNode(id, name, parentId: parentId);
   }
