@@ -426,7 +426,20 @@ class _AssetPageState extends State<AssetPage> {
 
       return searchTreeCache[currentlyAppliedFilterCacheKey.key]!;
     } else {
-      return await createNewSearchTree();
+      final searchTreeCriationStartTime = DateTime.now();
+
+      var newSearchTree = await createNewSearchTree();
+
+      final searchTreeCriationDuration =
+          DateTime.now().difference(searchTreeCriationStartTime);
+
+      // The auto-expanding filtered nodes feature needs around 1 second of delay to properly detect node visibility changes.
+      if (searchTreeCriationDuration < const Duration(seconds: 1)) {
+        await Future.delayed(
+            const Duration(seconds: 1) - searchTreeCriationDuration);
+      }
+
+      return newSearchTree;
     }
   }
 
