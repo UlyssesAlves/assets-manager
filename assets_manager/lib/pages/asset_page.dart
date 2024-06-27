@@ -4,14 +4,12 @@ import 'dart:isolate';
 import 'package:assets_manager/components/asset_tree/asset_tree_node_view.dart';
 import 'package:assets_manager/components/simple_button_with_icon.dart';
 import 'package:assets_manager/constants/styles.dart';
-import 'package:assets_manager/infrastructure/performance_counter.dart';
 import 'package:assets_manager/model/data_model/asset.dart';
 import 'package:assets_manager/model/data_model/filter_cache_item.dart';
 import 'package:assets_manager/model/data_model/location.dart';
 import 'package:assets_manager/model/data_model/tree_node.dart';
 import 'package:assets_manager/model/search_tree_blue_print.dart';
 import 'package:assets_manager/services/tree_builder.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -32,7 +30,6 @@ class AssetPage extends StatefulWidget {
 }
 
 class _AssetPageState extends State<AssetPage> {
-  PerformanceCounter performanceCounter = PerformanceCounter(false);
   String appliedTextFilter = '';
   String? textFilterCurrentValue;
   bool appliedFilterEnergySensor = false,
@@ -66,8 +63,6 @@ class _AssetPageState extends State<AssetPage> {
   @override
   void initState() {
     super.initState();
-
-    performanceCounter.reset();
 
     addMoreItemsToPaginatedTree();
 
@@ -150,8 +145,6 @@ class _AssetPageState extends State<AssetPage> {
 
   @override
   Widget build(BuildContext context) {
-    performanceCounter.trackActionStartTime(kActionBuildAssetsPage);
-
     final widgetTree = Scaffold(
       appBar: AppBar(
         title: Text(
@@ -257,9 +250,10 @@ class _AssetPageState extends State<AssetPage> {
                               clearSearchTree();
                             });
 
-                            await refreshSearchTree();
+                            final newSearchTree = await refreshSearchTree();
 
                             setState(() {
+                              searchTree = newSearchTree;
                               applyingFilters = false;
                             });
                           }
@@ -281,6 +275,8 @@ class _AssetPageState extends State<AssetPage> {
                     ),
                     () {
                       setState(() {
+                        collapseAllNodes();
+
                         textFilterController?.clear();
                         appliedTextFilter = '';
 
@@ -359,10 +355,6 @@ class _AssetPageState extends State<AssetPage> {
       ),
     );
 
-    performanceCounter.trackActionFinishTime(kActionBuildAssetsPage);
-
-    performanceCounter.printPerformanceReport();
-
     return widgetTree;
   }
 
@@ -427,26 +419,14 @@ class _AssetPageState extends State<AssetPage> {
     searchTree = buildSearchTree(SearchTreeBluePrint.empty());
   }
 
-  Future<void> refreshSearchTree() async {
-    performanceCounter.trackActionStartTime(kActionRefreshSearchTreeCall);
-
-    if (!filtersAreActive()) {
-      collapseAllNodes();
-    }
-
+  Future<TreeNode> refreshSearchTree() async {
     if (searchTreeCache.containsKey(currentlyAppliedFilterCacheKey.key)) {
       print('Using search tree from cache.');
 
-      searchTree = searchTreeCache[currentlyAppliedFilterCacheKey.key]!;
+      return searchTreeCache[currentlyAppliedFilterCacheKey.key]!;
     } else {
-      performanceCounter.trackActionStartTime(kCreateNewSearchTree);
-
-      searchTree = await createNewSearchTree();
-
-      performanceCounter.trackActionFinishTime(kCreateNewSearchTree);
+      return await createNewSearchTree();
     }
-
-    performanceCounter.trackActionFinishTime(kActionRefreshSearchTreeCall);
   }
 
   FilterCacheKey get currentlyAppliedFilterCacheKey => FilterCacheKey(
@@ -491,20 +471,16 @@ class _AssetPageState extends State<AssetPage> {
     leafNodesFilterResults.addAll(widget.companyLocationsMap.values
         .where((location) => idsLeafNodesFilterResults.contains(location.id)));
 
-    performanceCounter.trackActionStartTime(kCreateSearchTreeBluePrint);
+    for (var node in leafNodesFilterResults) {
+      node.expand();
+    }
 
     SearchTreeBluePrint bluePrint =
         createSearchTreeBluePrint(leafNodesFilterResults);
 
-    performanceCounter.trackActionFinishTime(kCreateSearchTreeBluePrint);
-
-    performanceCounter.trackActionStartTime(kBuildSearchTree);
-
     var newSearchTree = buildSearchTree(bluePrint);
 
     searchTreeCache[currentlyAppliedFilterCacheKey.key] = newSearchTree;
-
-    performanceCounter.trackActionFinishTime(kBuildSearchTree);
 
     return newSearchTree;
   }
