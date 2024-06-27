@@ -19,6 +19,8 @@ class AssetsManagerApp extends StatelessWidget {
         primarySwatch: primaryBlack,
       ),
       home: HomePage(),
+      showSemanticsDebugger: false,
+      debugShowCheckedModeBanner: false,
     );
   }
 }

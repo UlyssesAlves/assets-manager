@@ -338,6 +338,7 @@ class _AssetPageState extends State<AssetPage> {
 
                   if (filtersAreActive()) {
                     treeNodeToBuild = searchTree.children[index];
+                    treeNodeToBuild.expand();
                   } else {
                     treeNodeToBuild = paginatedAssetsTree.children[index];
                   }
@@ -470,10 +471,6 @@ class _AssetPageState extends State<AssetPage> {
 
     leafNodesFilterResults.addAll(widget.companyLocationsMap.values
         .where((location) => idsLeafNodesFilterResults.contains(location.id)));
-
-    for (var node in leafNodesFilterResults) {
-      node.expand();
-    }
 
     SearchTreeBluePrint bluePrint =
         createSearchTreeBluePrint(leafNodesFilterResults);
